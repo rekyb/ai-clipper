@@ -1,5 +1,6 @@
 # --- Project-specific ---
-models/
+# AI model files at repo root only; do NOT match backend/app/core/models/ (source)
+/models/
 media/originals/
 media/exports/
 media/logs/
