@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -158,3 +159,50 @@ async def test_upload_with_missing_filename_rejected(client: AsyncClient) -> Non
         files={"file": ("", b"some bytes", "application/octet-stream")},
     )
     assert response.status_code in (400, 422)
+
+
+async def test_download_url_returns_202_with_placeholder(client: AsyncClient) -> None:
+    with patch("app.features.import_.routes.run_youtube_import", new=AsyncMock()):
+        response = await client.post(
+            "/api/videos/download-url",
+            json={"url": "https://youtu.be/dQw4w9WgXcQ"},
+        )
+    assert response.status_code == 202
+    body = response.json()
+    assert body["error"] is None
+    data = body["data"]
+    assert data["status"] == "uploading"
+    assert data["source"] == "youtube"
+    assert data["source_url"] == "https://youtu.be/dQw4w9WgXcQ"
+
+
+async def test_download_url_schedules_background_task(client: AsyncClient) -> None:
+    spy = AsyncMock()
+    with patch("app.features.import_.routes.run_youtube_import", new=spy):
+        response = await client.post(
+            "/api/videos/download-url",
+            json={"url": "https://www.youtube.com/watch?v=abc"},
+        )
+    assert response.status_code == 202
+    spy.assert_awaited_once()
+    assert spy.await_args is not None
+    args, kwargs = spy.await_args
+    assert args[1] == "https://www.youtube.com/watch?v=abc"
+    assert len(args[0]) == 24  # ObjectId hex
+    assert "repo" in kwargs
+    assert "settings" in kwargs
+
+
+async def test_download_url_rejects_vimeo_host_with_400(client: AsyncClient) -> None:
+    with patch("app.features.import_.routes.run_youtube_import", new=AsyncMock()):
+        response = await client.post(
+            "/api/videos/download-url",
+            json={"url": "https://vimeo.com/12345"},
+        )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "UNSUPPORTED_HOST"
+
+
+async def test_download_url_rejects_garbage_url_with_422(client: AsyncClient) -> None:
+    response = await client.post("/api/videos/download-url", json={"url": "not-a-url"})
+    assert response.status_code == 422
