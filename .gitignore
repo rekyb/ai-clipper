@@ -3,6 +3,7 @@ models/
 media/originals/
 media/exports/
 media/logs/
+docker/mongo-data/
 .claude/
 
 # --- Env ---

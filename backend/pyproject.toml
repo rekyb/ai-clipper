@@ -1,0 +1,67 @@
+[project]
+name = "ai-clipper-backend"
+version = "0.1.0"
+description = "Local-first AI video clipping — FastAPI backend"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "motor>=3.6",
+    "python-multipart>=0.0.12",
+    "websockets>=13.1",
+    "structlog>=24.4",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.7",
+    "mypy>=1.13",
+    "motor-types>=1.0.0b4",
+]
+
+# Heavy AI deps installed via extras to keep Phase 1 install light.
+# Run: uv sync --extra ai --extra video
+[project.optional-dependencies]
+ai = [
+    "faster-whisper>=1.0",
+    "llama-cpp-python>=0.3",
+    "pynvml>=11.5",
+]
+video = [
+    "ffmpeg-python>=0.2",
+    "opencv-python>=4.10",
+    "yt-dlp>=2024.10.7",
+    "Pillow>=11.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests that load AI models or process media (skip by default with -m 'not slow')",
+]
+
+[tool.uv]
+package = false
