@@ -3,6 +3,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.features.import_.cleanup import (
@@ -76,6 +77,7 @@ async def test_mark_stale_noop_when_all_recent(
 
 def _uploading_doc(*, updated_at: datetime, filename: str = "x.mp4") -> VideoDocument:
     return VideoDocument(
+        id=str(ObjectId()),
         filename=filename,
         title=filename,
         source=VideoSource.UPLOAD,

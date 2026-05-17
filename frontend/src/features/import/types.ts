@@ -12,7 +12,7 @@ export interface UrlImportRequest {
   url: string;
 }
 export interface VideoDocument {
-  id?: string;
+  id: string;
   filename: string;
   title: string;
   source: VideoSource;

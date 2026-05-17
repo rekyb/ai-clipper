@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.features.import_.repository import VideoRepository
@@ -14,9 +15,11 @@ def _make_doc(
     status: VideoStatus = VideoStatus.IMPORTED,
     content_hash: str | None = "hash-default",
     created_at: datetime | None = None,
+    video_id: str | None = None,
 ) -> VideoDocument:
     now = created_at or datetime.now(UTC)
     return VideoDocument(
+        id=video_id or str(ObjectId()),
         filename=filename,
         title=title,
         source=VideoSource.UPLOAD,
@@ -43,11 +46,8 @@ async def test_insert_assigns_objectid_string(test_db: AsyncIOMotorDatabase) -> 
 
 
 async def test_insert_honors_preset_id(test_db: AsyncIOMotorDatabase) -> None:
-    from bson import ObjectId as Oid
-
-    preset = str(Oid())
-    doc = _make_doc()
-    doc = doc.model_copy(update={"id": preset})
+    preset = str(ObjectId())
+    doc = _make_doc(video_id=preset)
     inserted = await VideoRepository(test_db).insert(doc)
     assert inserted.id == preset
 

@@ -57,7 +57,7 @@ describe('useDeleteVideo', () => {
     await waitFor(() => expect(result.current.list.videos.find((v) => v.id === 'a')).toBeUndefined());
   });
 
-  it('rolls back optimistic update on API failure', async () => {
+  it('surfaces ApiError and leaves the list intact on failure', async () => {
     const responses: Array<{ ok: boolean; status: number; body: unknown }> = [
       { ok: true, status: 200, body: { data: { videos: [videoA, videoB] }, error: null } },
       {

@@ -1,11 +1,24 @@
+import { ThemeProvider } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 import { SWRConfig } from 'swr';
+
+import { theme } from '@/lib/theme';
 
 export function withFreshSwr({ children }: { children: ReactNode }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       {children}
     </SWRConfig>
+  );
+}
+
+export function withThemeAndSwr({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider theme={theme}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        {children}
+      </SWRConfig>
+    </ThemeProvider>
   );
 }
 

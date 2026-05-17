@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from bson import ObjectId
 
 from app.core.config import Settings
 from app.features.import_.errors import (
@@ -49,6 +50,7 @@ def _make_settings(tmp_path: Path, **overrides: Any) -> Settings:
 def _existing_video(content_hash: str, title: str) -> VideoDocument:
     now = datetime.now(UTC)
     return VideoDocument(
+        id=str(ObjectId()),
         filename="prior.mp4",
         title=title,
         source=VideoSource.UPLOAD,

@@ -18,7 +18,7 @@ class VideoSource(StrEnum):
 class VideoDocument(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-    id: str = Field(default="", validation_alias="_id", serialization_alias="id")
+    id: str = Field(validation_alias="_id", serialization_alias="id")
     filename: str
     title: str
     source: VideoSource
