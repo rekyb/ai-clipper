@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import patch
 
 import pytest_asyncio
 from bson import ObjectId
@@ -124,6 +126,72 @@ async def test_retry_returns_404_when_video_missing(client: AsyncClient) -> None
     resp = await client.post(f"/api/videos/{ObjectId()}/retry")
     assert resp.status_code == 404
     assert resp.json()["error"]["code"] == "NOT_FOUND"
+
+
+async def test_retry_reruns_youtube_import_when_storage_path_empty(
+    client: AsyncClient, test_db: AsyncIOMotorDatabase
+) -> None:
+    repo = VideoRepository(test_db)
+    doc = _make_video(status=VideoStatus.FAILED, error_code="VIDEO_AUTH_REQUIRED")
+    doc = doc.model_copy(
+        update={
+            "source": VideoSource.YOUTUBE,
+            "source_url": "https://youtu.be/x",
+            "storage_path": "",
+        }
+    )
+    inserted = await repo.insert(doc)
+
+    captured: dict[str, Any] = {}
+
+    async def fake_run_youtube_import(
+        video_id: str, url: str, *, repo: VideoRepository, settings: Any
+    ) -> None:
+        captured["video_id"] = video_id
+        captured["url"] = url
+
+    with patch(
+        "app.features.transcription.routes.run_youtube_import", fake_run_youtube_import
+    ):
+        resp = await client.post(f"/api/videos/{inserted.id}/retry")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["error"] is None
+    assert body["data"]["status"] == "uploading"
+    assert captured == {"video_id": inserted.id, "url": "https://youtu.be/x"}
+
+
+async def test_retry_uses_transcription_path_when_storage_path_set(
+    client: AsyncClient, test_db: AsyncIOMotorDatabase
+) -> None:
+    # A YouTube import that succeeded (file on disk) but transcription failed
+    # should re-queue for transcription, NOT re-trigger the YouTube download.
+    repo = VideoRepository(test_db)
+    doc = _make_video(status=VideoStatus.FAILED, error_code="AUDIO_DECODE_FAILED")
+    doc = doc.model_copy(
+        update={
+            "source": VideoSource.YOUTUBE,
+            "source_url": "https://youtu.be/x",
+            "storage_path": "/media/originals/abc/video.mp4",
+        }
+    )
+    inserted = await repo.insert(doc)
+
+    called = False
+
+    async def fake_run_youtube_import(*args: Any, **kwargs: Any) -> None:
+        nonlocal called
+        called = True
+
+    with patch(
+        "app.features.transcription.routes.run_youtube_import", fake_run_youtube_import
+    ):
+        resp = await client.post(f"/api/videos/{inserted.id}/retry")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["status"] == "queued"
+    assert called is False, "must NOT re-trigger youtube import when file already exists"
 
 
 async def test_transcript_get_returns_404_when_missing(

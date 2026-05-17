@@ -88,6 +88,27 @@ def test_download_to_omits_cookies_when_unset(tmp_path: Path) -> None:
     assert "cookiefile" not in captured
 
 
+def test_download_to_uses_dash_aware_format_selector(tmp_path: Path) -> None:
+    # YouTube serves most modern videos as DASH (separate audio + video). The
+    # selector must prefer the best DASH video+audio combo and merge to mp4,
+    # falling back to a single combined stream when one exists.
+    captured: dict[str, Any] = {}
+
+    class _Capture(_FakeYDL):
+        def __init__(self, opts: dict[str, Any]) -> None:
+            super().__init__(opts)
+            captured.update(opts)
+
+    with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _Capture):
+        download_to("https://youtu.be/x", tmp_path)
+    fmt = captured.get("format", "")
+    # Must include a separate-streams branch (bv*+ba) and an mp4 fallback.
+    assert "bv*" in fmt or "bestvideo" in fmt
+    assert "ba" in fmt or "bestaudio" in fmt
+    # Forces ffmpeg to merge separate streams into a single mp4 file.
+    assert captured.get("merge_output_format") == "mp4"
+
+
 def test_download_to_creates_target_dir(tmp_path: Path) -> None:
     nested = tmp_path / "deeply" / "nested"
     with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _FakeYDL):
@@ -107,6 +128,7 @@ def test_download_to_creates_target_dir(tmp_path: Path) -> None:
         ("ERROR: [youtube] x: geo-restricted to JP", "VIDEO_REGION_BLOCKED"),
         ("ERROR: [youtube] x: Sign in to confirm you're not a bot", "VIDEO_AUTH_REQUIRED"),
         ("ERROR: [youtube] x: Use --cookies-from-browser", "VIDEO_AUTH_REQUIRED"),
+        ("ERROR: [youtube] x: Requested format is not available", "VIDEO_FORMAT_UNAVAILABLE"),
         ("ERROR: [youtube] x: something else broke", "DOWNLOAD_FAILED"),
     ],
 )

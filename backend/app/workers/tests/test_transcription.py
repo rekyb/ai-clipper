@@ -59,7 +59,11 @@ def _fake_segments(n: int) -> list[FakeSegment]:
 
 
 def _make_video(
-    *, status: VideoStatus = VideoStatus.QUEUED, filename: str = "x.mp4", duration: float = 10.0
+    *,
+    status: VideoStatus = VideoStatus.QUEUED,
+    filename: str = "x.mp4",
+    duration: float = 10.0,
+    storage_path: str | None = None,
 ) -> VideoDocument:
     now = datetime.now(UTC)
     return VideoDocument(
@@ -68,7 +72,7 @@ def _make_video(
         title=filename,
         source=VideoSource.UPLOAD,
         source_url=None,
-        storage_path=f"/x/{filename}",
+        storage_path=storage_path if storage_path is not None else f"/x/{filename}",
         thumbnail_path=None,
         duration_sec=duration,
         file_size_bytes=1,
@@ -80,6 +84,14 @@ def _make_video(
         created_at=now,
         updated_at=now,
     )
+
+
+@pytest.fixture
+def real_media_file(tmp_path: Path) -> Path:
+    """A real (empty) file the worker guard will treat as present."""
+    f = tmp_path / "fake-media.mp4"
+    f.write_bytes(b"")
+    return f
 
 
 class FakeWhisperService(WhisperService):
@@ -128,10 +140,12 @@ def _reset_singleton_manager() -> None:
 
 
 async def test_process_one_writes_transcript_and_flips_to_ready(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
     worker = _make_worker(test_db=test_db, whisper=FakeWhisperService())
     await worker.process_one(inserted)
 
@@ -148,10 +162,12 @@ async def test_process_one_writes_transcript_and_flips_to_ready(
 
 
 async def test_process_one_broadcasts_progress_and_complete(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
     received: list[Any] = []
 
     class _RecordingWs:
@@ -180,10 +196,12 @@ async def test_process_one_broadcasts_progress_and_complete(
 
 
 async def test_process_one_handles_vram_unavailable(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
 
     def _failing_factory() -> WhisperService:
         raise VRAMUnavailableError(requested_bytes=2_500_000_000, available_bytes=500_000_000)
@@ -204,10 +222,12 @@ async def test_process_one_handles_vram_unavailable(
 
 
 async def test_process_one_handles_audio_decode_failure(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
     worker = _make_worker(
         test_db=test_db,
         whisper=FakeWhisperService(raise_exc=AudioDecodeFailedError("bad audio")),
@@ -221,10 +241,12 @@ async def test_process_one_handles_audio_decode_failure(
 
 
 async def test_process_one_handles_generic_exception_as_transcription_failed(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
     worker = _make_worker(
         test_db=test_db,
         whisper=FakeWhisperService(raise_exc=RuntimeError("kaboom")),
@@ -237,9 +259,65 @@ async def test_process_one_handles_generic_exception_as_transcription_failed(
     assert fetched.error_code == "TRANSCRIPTION_FAILED"
 
 
-async def test_process_one_handles_timeout(test_db: AsyncIOMotorDatabase) -> None:
+async def test_process_one_fails_fast_when_storage_path_is_empty(
+    test_db: AsyncIOMotorDatabase,
+) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING, duration=0.5))
+    # Replicates the bug-trigger condition: a YouTube import failed before
+    # producing a file, and Retry pushed it into the queue with storage_path="".
+    video = _make_video(status=VideoStatus.TRANSCRIBING)
+    video = video.model_copy(update={"storage_path": ""})
+    inserted = await repo.insert(video)
+
+    whisper_loaded = False
+
+    def _track_load() -> WhisperService:
+        nonlocal whisper_loaded
+        whisper_loaded = True
+        return FakeWhisperService()
+
+    worker = TranscriptionWorker(
+        repo=VideoRepository(test_db),
+        transcript_repo=TranscriptRepository(test_db),
+        ws_manager=ConnectionManager(),
+        settings=Settings(_env_file=None, skip_vram_guard=True),
+        whisper_factory=_track_load,
+    )
+    await worker.process_one(inserted)
+
+    fetched = await repo.get_by_id(inserted.id)
+    assert fetched is not None
+    assert fetched.status is VideoStatus.FAILED
+    assert fetched.error_code == "MEDIA_FILE_MISSING"
+    assert whisper_loaded is False, "must not load Whisper when file is missing"
+
+
+async def test_process_one_fails_fast_when_storage_path_does_not_exist(
+    test_db: AsyncIOMotorDatabase, tmp_path: Path
+) -> None:
+    repo = VideoRepository(test_db)
+    video = _make_video(status=VideoStatus.TRANSCRIBING)
+    bogus = tmp_path / "does-not-exist.mp4"
+    video = video.model_copy(update={"storage_path": str(bogus)})
+    inserted = await repo.insert(video)
+    worker = _make_worker(test_db=test_db, whisper=FakeWhisperService())
+    await worker.process_one(inserted)
+
+    fetched = await repo.get_by_id(inserted.id)
+    assert fetched is not None
+    assert fetched.status is VideoStatus.FAILED
+    assert fetched.error_code == "MEDIA_FILE_MISSING"
+
+
+async def test_process_one_handles_timeout(
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
+) -> None:
+    repo = VideoRepository(test_db)
+    inserted = await repo.insert(
+        _make_video(
+            status=VideoStatus.TRANSCRIBING, duration=0.5, storage_path=str(real_media_file)
+        )
+    )
     worker = _make_worker(
         test_db=test_db,
         whisper=FakeWhisperService(per_segment_delay=2.0),
@@ -258,10 +336,12 @@ async def test_process_one_handles_timeout(test_db: AsyncIOMotorDatabase) -> Non
 
 
 async def test_process_one_updates_last_progress_percent(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, real_media_file: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    inserted = await repo.insert(_make_video(status=VideoStatus.TRANSCRIBING))
+    inserted = await repo.insert(
+        _make_video(status=VideoStatus.TRANSCRIBING, storage_path=str(real_media_file))
+    )
     worker = _make_worker(
         test_db=test_db,
         whisper=FakeWhisperService(segments=_fake_segments(4)),
@@ -279,11 +359,19 @@ async def test_process_one_updates_last_progress_percent(
 
 
 async def test_run_forever_processes_queue_then_idles(
-    test_db: AsyncIOMotorDatabase,
+    test_db: AsyncIOMotorDatabase, tmp_path: Path
 ) -> None:
     repo = VideoRepository(test_db)
-    await repo.insert(_make_video(status=VideoStatus.QUEUED, filename="a.mp4"))
-    await repo.insert(_make_video(status=VideoStatus.QUEUED, filename="b.mp4"))
+    media_a = tmp_path / "a.mp4"
+    media_b = tmp_path / "b.mp4"
+    media_a.write_bytes(b"")
+    media_b.write_bytes(b"")
+    await repo.insert(
+        _make_video(status=VideoStatus.QUEUED, filename="a.mp4", storage_path=str(media_a))
+    )
+    await repo.insert(
+        _make_video(status=VideoStatus.QUEUED, filename="b.mp4", storage_path=str(media_b))
+    )
 
     worker = _make_worker(
         test_db=test_db,

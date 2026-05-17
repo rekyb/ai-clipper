@@ -36,6 +36,8 @@ def _map_download_error(exc: DownloadError) -> YoutubeDownloadError:
         return YoutubeDownloadError(str(exc), code="VIDEO_AUTH_REQUIRED")
     if "not available in your country" in msg or "geo" in msg:
         return YoutubeDownloadError(str(exc), code="VIDEO_REGION_BLOCKED")
+    if "requested format is not available" in msg:
+        return YoutubeDownloadError(str(exc), code="VIDEO_FORMAT_UNAVAILABLE")
     return YoutubeDownloadError(str(exc), code="DOWNLOAD_FAILED")
 
 
@@ -56,8 +58,15 @@ def download_to(
     cookies_file: Path | None = None,
 ) -> YoutubeResult:
     target_dir.mkdir(parents=True, exist_ok=True)
+    # YouTube serves modern uploads as DASH (separate audio + video). Order:
+    #   1. mp4 video + m4a audio (no transcode, just remux)
+    #   2. any best video + any best audio (transcoded to mp4 by ffmpeg)
+    #   3. legacy single-stream mp4
+    #   4. legacy single-stream anything
+    # `merge_output_format` forces the merged file to land as .mp4.
     opts: dict[str, Any] = {
-        "format": "best[ext=mp4]/best",
+        "format": "bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/best[ext=mp4]/best",
+        "merge_output_format": "mp4",
         "outtmpl": str(target_dir / "%(id)s.%(ext)s"),
         "noprogress": True,
         "quiet": True,

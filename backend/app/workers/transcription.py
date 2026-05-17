@@ -104,6 +104,20 @@ class TranscriptionWorker:
             1.0, self._settings.transcription_timeout_multiplier * (video.duration_sec or 1.0)
         )
 
+        # Defensive guard: a placeholder record (e.g. a YouTube import that
+        # failed before producing a file) carries storage_path="". Path("") is
+        # `.` (current directory), which faster-whisper would try to open as a
+        # media file and surface as a cryptic "Permission denied: '.'". Fail
+        # fast before loading Whisper.
+        if not video.storage_path or not Path(video.storage_path).is_file():
+            await self._fail(
+                video.id,
+                WorkerErrorCode.MEDIA_FILE_MISSING.value,
+                f"media file not found at {video.storage_path!r}",
+                elapsed_sec=0.0,
+            )
+            return
+
         try:
             whisper = self._ensure_whisper()
         except VRAMUnavailableError as exc:

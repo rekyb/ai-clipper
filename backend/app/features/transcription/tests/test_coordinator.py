@@ -131,6 +131,75 @@ async def test_retry_raises_not_found_when_missing(test_db: AsyncIOMotorDatabase
         raise AssertionError("expected TranscriptNotFoundError")
 
 
+async def test_retry_youtube_import_resets_failed_to_uploading_and_clears_error(
+    test_db: AsyncIOMotorDatabase,
+) -> None:
+    repo = VideoRepository(test_db)
+    doc = _make_doc(status=VideoStatus.FAILED)
+    doc = doc.model_copy(
+        update={
+            "source": VideoSource.YOUTUBE,
+            "source_url": "https://youtu.be/x",
+            "storage_path": "",
+            "error_code": "VIDEO_AUTH_REQUIRED",
+            "error_message": "bot check",
+        }
+    )
+    inserted = await repo.insert(doc)
+    result = await coordinator.retry_youtube_import(inserted.id, repo=repo)
+    assert result.status is VideoStatus.UPLOADING
+    fetched = await repo.get_by_id(inserted.id)
+    assert fetched is not None
+    assert fetched.error_code is None
+    assert fetched.error_message is None
+    assert fetched.source is VideoSource.YOUTUBE
+    assert fetched.source_url == "https://youtu.be/x"
+
+
+async def test_retry_youtube_import_raises_when_not_failed(
+    test_db: AsyncIOMotorDatabase,
+) -> None:
+    repo = VideoRepository(test_db)
+    doc = _make_doc(status=VideoStatus.READY).model_copy(
+        update={"source": VideoSource.YOUTUBE, "source_url": "https://youtu.be/x"}
+    )
+    inserted = await repo.insert(doc)
+    try:
+        await coordinator.retry_youtube_import(inserted.id, repo=repo)
+    except InvalidTranscriptionTransitionError:
+        pass
+    else:
+        raise AssertionError("expected InvalidTranscriptionTransitionError")
+
+
+async def test_retry_youtube_import_raises_when_source_not_youtube(
+    test_db: AsyncIOMotorDatabase,
+) -> None:
+    repo = VideoRepository(test_db)
+    doc = _make_doc(status=VideoStatus.FAILED).model_copy(
+        update={"source": VideoSource.UPLOAD, "storage_path": "", "error_code": "X"}
+    )
+    inserted = await repo.insert(doc)
+    try:
+        await coordinator.retry_youtube_import(inserted.id, repo=repo)
+    except InvalidTranscriptionTransitionError:
+        pass
+    else:
+        raise AssertionError("expected InvalidTranscriptionTransitionError")
+
+
+async def test_retry_youtube_import_raises_not_found_when_missing(
+    test_db: AsyncIOMotorDatabase,
+) -> None:
+    repo = VideoRepository(test_db)
+    try:
+        await coordinator.retry_youtube_import(str(ObjectId()), repo=repo)
+    except TranscriptNotFoundError:
+        pass
+    else:
+        raise AssertionError("expected TranscriptNotFoundError")
+
+
 async def test_back_fill_at_startup_sweeps_transcribing_and_back_fills_imported(
     test_db: AsyncIOMotorDatabase,
 ) -> None:
