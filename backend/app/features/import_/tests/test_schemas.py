@@ -66,7 +66,7 @@ def test_video_document_dumps_camelcase_keys_for_mongo() -> None:
     assert "fileSizeBytes" in mongo
     assert "contentHash" in mongo
     assert "createdAt" in mongo
-    assert "_id" in mongo
+    assert "id" in mongo  # API-facing serialization (Mongo's _id is added by the repo)
 
 
 def test_video_document_validates_from_mongo_shape() -> None:

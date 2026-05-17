@@ -81,7 +81,7 @@ async def test_upload_returns_201_with_imported_record(
     assert data["status"] == "imported"
     assert data["filename"] == "sample.mp4"
     assert data["container"] == "mp4"
-    assert 4.5 <= data["duration_sec"] <= 5.5
+    assert 4.5 <= data["durationSec"] <= 5.5
 
 
 async def test_upload_rejects_unsupported_container_with_422(
@@ -173,7 +173,7 @@ async def test_download_url_returns_202_with_placeholder(client: AsyncClient) ->
     data = body["data"]
     assert data["status"] == "uploading"
     assert data["source"] == "youtube"
-    assert data["source_url"] == "https://youtu.be/dQw4w9WgXcQ"
+    assert data["sourceUrl"] == "https://youtu.be/dQw4w9WgXcQ"
 
 
 async def test_download_url_schedules_background_task(client: AsyncClient) -> None:
@@ -247,8 +247,8 @@ async def test_delete_removes_record_and_files(
             "/api/videos/upload", files={"file": ("sample.mp4", f, "video/mp4")}
         )
     video_id = upload.json()["data"]["id"]
-    storage_path = Path(upload.json()["data"]["storage_path"])
-    thumb_path = Path(upload.json()["data"]["thumbnail_path"])
+    storage_path = Path(upload.json()["data"]["storagePath"])
+    thumb_path = Path(upload.json()["data"]["thumbnailPath"])
 
     delete_response = await client.delete(f"/api/videos/{video_id}")
     assert delete_response.status_code == 200
@@ -279,7 +279,7 @@ async def test_thumbnail_static_mount_serves_uploaded_thumbnail(
         upload = await client.post(
             "/api/videos/upload", files={"file": ("sample.mp4", f, "video/mp4")}
         )
-    thumb_path = Path(upload.json()["data"]["thumbnail_path"])
+    thumb_path = Path(upload.json()["data"]["thumbnailPath"])
     response = await client.get(f"/media/thumbnails/{thumb_path.name}")
     assert response.status_code == 200
     assert response.content[:3] == b"\xff\xd8\xff"

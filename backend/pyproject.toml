@@ -24,6 +24,7 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.13",
     "motor-types>=1.0.0b4",
+    "pydantic-to-typescript>=2.0.0",
 ]
 
 # Heavy AI deps installed via extras to keep Phase 1 install light.
@@ -58,7 +59,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["yt_dlp", "yt_dlp.*"]
+module = ["yt_dlp", "yt_dlp.*", "pydantic2ts", "pydantic2ts.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

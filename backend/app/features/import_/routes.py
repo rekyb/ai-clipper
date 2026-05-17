@@ -68,7 +68,7 @@ async def upload_video(
         repo=repo,
         settings=settings,
     )
-    return {"data": doc.model_dump(mode="json"), "error": None}
+    return {"data": doc.model_dump(mode="json", by_alias=True), "error": None}
 
 
 @router.post("/download-url", status_code=status.HTTP_202_ACCEPTED)
@@ -81,7 +81,7 @@ async def download_from_url(
     url = str(request.url)
     placeholder = await import_from_url(url=url, repo=repo, settings=settings)
     background.add_task(run_youtube_import, placeholder.id, url, repo=repo, settings=settings)
-    return {"data": placeholder.model_dump(mode="json"), "error": None}
+    return {"data": placeholder.model_dump(mode="json", by_alias=True), "error": None}
 
 
 @router.get("")
@@ -91,7 +91,7 @@ async def list_all(
 ) -> dict[str, Any]:
     docs = await list_videos(repo=repo, status=status)
     return {
-        "data": {"videos": [d.model_dump(mode="json") for d in docs]},
+        "data": {"videos": [d.model_dump(mode="json", by_alias=True) for d in docs]},
         "error": None,
     }
 
