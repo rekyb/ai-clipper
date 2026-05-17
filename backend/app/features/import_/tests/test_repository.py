@@ -42,6 +42,16 @@ async def test_insert_assigns_objectid_string(test_db: AsyncIOMotorDatabase) -> 
     assert len(inserted.id) == 24
 
 
+async def test_insert_honors_preset_id(test_db: AsyncIOMotorDatabase) -> None:
+    from bson import ObjectId as Oid
+
+    preset = str(Oid())
+    doc = _make_doc()
+    doc = doc.model_copy(update={"id": preset})
+    inserted = await VideoRepository(test_db).insert(doc)
+    assert inserted.id == preset
+
+
 async def test_insert_persists_camelcase_keys_in_mongo(
     test_db: AsyncIOMotorDatabase,
 ) -> None:

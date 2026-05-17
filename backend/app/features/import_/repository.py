@@ -31,6 +31,8 @@ class VideoRepository:
 
     async def insert(self, doc: VideoDocument) -> VideoDocument:
         payload = doc.model_dump(by_alias=True, exclude={"id"})
+        if doc.id:
+            payload["_id"] = ObjectId(doc.id)
         result = await self._collection.insert_one(payload)
         return doc.model_copy(update={"id": str(result.inserted_id)})
 
