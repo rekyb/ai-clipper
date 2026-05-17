@@ -270,3 +270,16 @@ async def test_delete_returns_404_for_malformed_id(client: AsyncClient) -> None:
     response = await client.delete("/api/videos/not-an-objectid")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
+async def test_thumbnail_static_mount_serves_uploaded_thumbnail(
+    client: AsyncClient, fixture_videos: dict[str, Path]
+) -> None:
+    with fixture_videos["mp4"].open("rb") as f:
+        upload = await client.post(
+            "/api/videos/upload", files={"file": ("sample.mp4", f, "video/mp4")}
+        )
+    thumb_path = Path(upload.json()["data"]["thumbnail_path"])
+    response = await client.get(f"/media/thumbnails/{thumb_path.name}")
+    assert response.status_code == 200
+    assert response.content[:3] == b"\xff\xd8\xff"

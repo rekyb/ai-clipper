@@ -7,11 +7,12 @@ from fastapi import (
     Depends,
     FastAPI,
     File,
+    HTTPException,
     Request,
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.config import Settings, get_settings
 from app.core.db.client import get_db
@@ -27,6 +28,20 @@ from app.features.import_.service import (
 from app.features.import_.tasks import run_youtube_import
 
 router = APIRouter(prefix="/videos", tags=["videos"])
+media_router = APIRouter(prefix="/media", tags=["media"])
+
+
+@media_router.get("/thumbnails/{filename}")
+async def serve_thumbnail(
+    filename: str,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FileResponse:
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=404, detail="not found")
+    path = settings.thumbnails_dir / filename
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 def get_video_repository() -> VideoRepository:
