@@ -11,9 +11,10 @@ All work (except critical hotfixes) follows this gated workflow before any imple
 ### Gate 1: PRD (Product Requirements)
 
 - **Location:** `docs/features/[feature-name]/[feature-name]-prd.md`
-- **Skill:** Use `/product-requirements` to draft
-- **Tone:** Tech-agnostic. Describe the problem, user stories, acceptance criteria, and success metrics. No implementation details.
-- **Review role:** Act as Head of Product. Evaluate completeness, clarity, user value, and edge cases.
+- **Skills:** Use `/product-requirements` to draft requirements. Use `/ui-ux-pro-max` to provide UI/UX direction (layout, interaction patterns, visual guidelines) as part of the PRD.
+- **Tone:** Tech-agnostic. Describe the problem, user stories, acceptance criteria, success metrics, and UI/UX direction. No implementation details.
+- **Visual coherence:** Every PRD must reference `DESIGN.md` for style, color palette, typography, spacing, and component patterns. New features conform to the established design system — never introduce a new visual style per feature.
+- **Review role:** Act as Head of Product. Evaluate completeness, clarity, user value, edge cases, and visual consistency with the design system.
 - **Approval:** User must explicitly approve the PRD before proceeding to Gate 2.
 
 ### Gate 2: Technical Documentation
@@ -98,6 +99,9 @@ ai-clipper/
 ├── models/             # AI model files (gitignored, ~10GB)
 ├── media/              # originals/ and exports/ (gitignored)
 ├── docs/               # Specs, architecture docs
+├── CLAUDE.md           # Project instructions for Claude Code
+├── DESIGN.md           # Design system (palette, typography, spacing, components)
+├── MEMORY.md           # Session memory (patterns, anti-patterns, discoveries)
 └── docker-compose.yml  # MongoDB + optional services
 ```
 
@@ -108,6 +112,14 @@ ai-clipper/
 - **Shared contracts:** TypeScript types in `frontend/src/types/` must mirror Pydantic models in `backend/app/models/`
 - **Contract generation:** Backend Pydantic models are the source of truth. Use `pydantic-to-typescript` (or equivalent) to generate TypeScript interfaces — do not hand-write mirrored types. Run codegen after any Pydantic model change.
 - **Never cross:** Frontend never imports from backend or vice versa. Communication via HTTP/WebSocket only.
+
+## Design System
+
+- **Source of truth:** `DESIGN.md` (project root) — defines color palette, typography, spacing scale, component patterns, and interaction styles for the entire app
+- **Established once:** Created during the first feature PRD using `/ui-ux-pro-max`. All subsequent features reference and conform to it.
+- **Updates:** Design system changes require their own PRD cycle (treated as a feature). Never silently drift per module.
+- **Enforcement:** Every frontend component must use design tokens (MUI theme variables) — no hardcoded colors, font sizes, or spacing values
+- **Consistency check:** During Gate 2 (Tech Docs), verify that proposed UI components align with `DESIGN.md`. Flag deviations before implementation.
 
 ## Code Conventions
 
@@ -369,7 +381,7 @@ Models: Download manually to `models/` per README instructions.
 
 ### Writing Memory (end of every session)
 
-After completing implementation (or when a session ends mid-work), append an entry to `docs/memory.md` (newest-first):
+After completing implementation (or when a session ends mid-work), append an entry to `MEMORY.md` (newest-first):
 
 ```markdown
 ## [YYYY-MM-DD] Feature/Task Name
@@ -393,5 +405,5 @@ Keep each entry concise — bullet points, not paragraphs.
 
 ### Reading Memory
 
-- **Session start:** Read `docs/memory.md` before any work begins
+- **Session start:** Read `MEMORY.md` before any work begins
 - **Before Gate 1:** Re-read memory before drafting a new PRD to apply learned patterns and avoid repeated mistakes
