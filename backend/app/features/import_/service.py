@@ -3,7 +3,7 @@ import re
 import shutil
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePath, PureWindowsPath
 from urllib.parse import urlparse
 
 import structlog
