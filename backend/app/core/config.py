@@ -1,8 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -29,13 +30,29 @@ class Settings(BaseSettings):
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
-    @field_validator("cors_origins", mode="before")
+    max_file_size_bytes: int = 5 * 1024**3
+    max_duration_seconds: int = 14400
+    supported_containers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["mp4", "mkv", "mov", "avi", "webm"]
+    )
+    allowed_url_hosts: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "youtube.com",
+            "youtu.be",
+            "www.youtube.com",
+            "m.youtube.com",
+        ]
+    )
+
+    @field_validator("cors_origins", "supported_containers", "allowed_url_hosts", mode="before")
     @classmethod
-    def _split_cors(cls, value: object) -> object:
+    def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     @property
@@ -61,6 +78,10 @@ class Settings(BaseSettings):
     @property
     def logs_dir(self) -> Path:
         return self.media_dir / "logs"
+
+    @property
+    def thumbnails_dir(self) -> Path:
+        return self.media_dir / "thumbnails"
 
 
 @lru_cache

@@ -7,6 +7,7 @@ name = "ai-clipper-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiofiles" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "motor" },
@@ -16,6 +17,7 @@ dependencies = [
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "websockets" },
+    { name = "yt-dlp" },
 ]
 
 [package.optional-dependencies]
@@ -28,21 +30,23 @@ video = [
     { name = "ffmpeg-python" },
     { name = "opencv-python" },
     { name = "pillow" },
-    { name = "yt-dlp" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "motor-types" },
     { name = "mypy" },
+    { name = "pydantic-to-typescript" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-aiofiles" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "aiofiles", specifier = ">=24.1" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "faster-whisper", marker = "extra == 'ai'", specifier = ">=1.0" },
     { name = "ffmpeg-python", marker = "extra == 'video'", specifier = ">=0.2" },
@@ -58,7 +62,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.4" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
     { name = "websockets", specifier = ">=13.1" },
-    { name = "yt-dlp", marker = "extra == 'video'", specifier = ">=2024.10.7" },
+    { name = "yt-dlp", specifier = ">=2024.10.7" },
 ]
 provides-extras = ["ai", "video"]
 
@@ -66,10 +70,21 @@ provides-extras = ["ai", "video"]
 dev = [
     { name = "motor-types", specifier = ">=1.0.0b4" },
     { name = "mypy", specifier = ">=1.13" },
+    { name = "pydantic-to-typescript", specifier = ">=2.0.0" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.7" },
+    { name = "types-aiofiles", specifier = ">=24.1" },
+]
+
+[[package]]
+name = "aiofiles"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/8a/340a1555ae33d7354dbca4faa54948d76d89a27ceef032c8c3bc661d003e/aiofiles-25.1.0-py3-none-any.whl", hash = "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695", size = 14668, upload-time = "2025-10-09T20:51:03.174Z" },
 ]
 
 [[package]]
@@ -743,6 +758,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pydantic-to-typescript"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/59/ac/8dc13be6720267b5edffb3b0d8c1abdcccc5743d7bda4257ab0a5dccc7b9/pydantic_to_typescript-2.0.0.tar.gz", hash = "sha256:06e92e8d10759ffebe3abdd4de14015bbf80809fa9960273be6041d8509662be", size = 35484, upload-time = "2024-11-22T03:33:59.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/9c/f51312f3063a8b6e1e09e6527a81d3b1828ad5fc8a65c14376f85cf65502/pydantic_to_typescript-2.0.0-py3-none-any.whl", hash = "sha256:5bc5e1a940c1a39e4e3a6124bd3bda1b0fc6df85c673a4781b94a1f4150cae15", size = 9693, upload-time = "2024-11-22T03:33:57.199Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
@@ -993,6 +1020,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e4/51/9aed62104cea109b820bbd6c14245af756112017d309da813ef107d42e7e/typer-0.25.1.tar.gz", hash = "sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc", size = 122276, upload-time = "2026-04-30T19:32:16.964Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/f9/2b3ff4e56e5fa7debfaf9eb135d0da96f3e9a1d5b27222223c7296336e5f/typer-0.25.1-py3-none-any.whl", hash = "sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89", size = 58409, upload-time = "2026-04-30T19:32:18.271Z" },
+]
+
+[[package]]
+name = "types-aiofiles"
+version = "25.1.0.20260508"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/d9/60e8b26ad7e57eb3b58f3370b35f0d740dd0909079417e784f4e6c0f92f6/types_aiofiles-25.1.0.20260508.tar.gz", hash = "sha256:d26b07bb28f36c154c77d33982e506ee462044932d42c4eea6e78f69d1de5b84", size = 14851, upload-time = "2026-05-08T04:49:48.446Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/88/31d8fb1a3d0a96e1e41cfc58c67f48634e840e2598336887fa5be1dd9c82/types_aiofiles-25.1.0.20260508-py3-none-any.whl", hash = "sha256:c35d2be25a7e4b881da7f62ff3823db3770b2f704f31ac69681c227569e808cc", size = 14365, upload-time = "2026-05-08T04:49:47.302Z" },
 ]
 
 [[package]]

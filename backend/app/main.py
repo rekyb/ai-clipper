@@ -5,9 +5,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.db.client import close_client
+from app.core.db.client import close_client, get_db
 from app.core.db.health import ping as mongo_ping
 from app.core.logging.setup import configure_logging, get_logger
+from app.features.import_ import routes as import_routes
+from app.features.import_.cleanup import (
+    mark_stale_uploading_as_failed,
+    sweep_stale_temp_files,
+)
+from app.features.import_.repository import VideoRepository
 
 logger = get_logger(__name__)
 
@@ -16,9 +22,20 @@ logger = get_logger(__name__)
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     settings = get_settings()
-    logger.info("startup", api_port=settings.api_port, mongodb_db=settings.mongodb_db)
+    (settings.originals_dir / ".tmp").mkdir(parents=True, exist_ok=True)
+    settings.thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+    swept = sweep_stale_temp_files(settings.originals_dir)
+    stale = await mark_stale_uploading_as_failed(VideoRepository(get_db()))
+    logger.info(
+        "startup",
+        api_port=settings.api_port,
+        mongodb_db=settings.mongodb_db,
+        tmp_swept=swept,
+        stale_uploads_failed=stale,
+    )
     yield
-    await close_client()
+    close_client()
     logger.info("shutdown")
 
 
@@ -37,6 +54,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(import_routes.router, prefix="/api")
+app.include_router(import_routes.media_router)
+import_routes.register_exception_handlers(app)
+
+settings.thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/health")

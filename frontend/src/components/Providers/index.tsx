@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { theme } from '@/lib/theme';
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <AppRouterCacheProvider options={{ enableCssLayer: true }}>
       <ThemeProvider theme={theme} defaultMode="dark">
