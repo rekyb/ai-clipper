@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.db.client import close_client
 from app.core.db.health import ping as mongo_ping
 from app.core.logging.setup import configure_logging, get_logger
+from app.features.import_ import routes as import_routes
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(import_routes.router, prefix="/api")
+import_routes.register_exception_handlers(app)
 
 
 @app.get("/health")
