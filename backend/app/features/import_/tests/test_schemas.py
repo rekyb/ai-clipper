@@ -36,10 +36,11 @@ def _sample_video_document() -> VideoDocument:
         source=VideoSource.UPLOAD,
         source_url=None,
         storage_path="/media/originals/65f1.../my-podcast.mp4",
-        thumbnail_url="/media/thumbnails/65f1a2b3c4d5e6f7a8b9c0d1.jpg",
+        thumbnail_path="/media/thumbnails/65f1a2b3c4d5e6f7a8b9c0d1.jpg",
         duration_sec=1834.5,
         file_size_bytes=524_288_000,
         container="mp4",
+        content_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         status=VideoStatus.IMPORTED,
         error_code=None,
         error_message=None,
@@ -55,6 +56,45 @@ def test_video_document_serializes_to_dict_and_back() -> None:
     assert reloaded == original
 
 
+def test_video_document_dumps_camelcase_keys_for_mongo() -> None:
+    doc = _sample_video_document()
+    mongo = doc.model_dump(by_alias=True)
+    assert "sourceUrl" in mongo
+    assert "storagePath" in mongo
+    assert "thumbnailPath" in mongo
+    assert "durationSec" in mongo
+    assert "fileSizeBytes" in mongo
+    assert "contentHash" in mongo
+    assert "createdAt" in mongo
+    assert "_id" in mongo
+
+
+def test_video_document_validates_from_mongo_shape() -> None:
+    now = datetime(2026, 5, 17, 10, 30, tzinfo=UTC)
+    raw = {
+        "_id": "65f1a2b3c4d5e6f7a8b9c0d1",
+        "filename": "foo.mp4",
+        "title": "Foo",
+        "source": "upload",
+        "sourceUrl": None,
+        "storagePath": "/path/foo.mp4",
+        "thumbnailPath": None,
+        "durationSec": 100.0,
+        "fileSizeBytes": 1000,
+        "container": "mp4",
+        "contentHash": "abc",
+        "status": "imported",
+        "errorCode": None,
+        "errorMessage": None,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    doc = VideoDocument.model_validate(raw)
+    assert doc.id == "65f1a2b3c4d5e6f7a8b9c0d1"
+    assert doc.thumbnail_path is None
+    assert doc.content_hash == "abc"
+
+
 def test_video_document_allows_nullable_metadata_while_uploading() -> None:
     now = datetime(2026, 5, 17, 10, 30, tzinfo=UTC)
     doc = VideoDocument(
@@ -64,10 +104,11 @@ def test_video_document_allows_nullable_metadata_while_uploading() -> None:
         source=VideoSource.YOUTUBE,
         source_url="https://youtu.be/abc123",
         storage_path="",
-        thumbnail_url=None,
+        thumbnail_path=None,
         duration_sec=None,
         file_size_bytes=0,
         container=None,
+        content_hash=None,
         status=VideoStatus.UPLOADING,
         error_code=None,
         error_message=None,
@@ -75,8 +116,9 @@ def test_video_document_allows_nullable_metadata_while_uploading() -> None:
         updated_at=now,
     )
     assert doc.status is VideoStatus.UPLOADING
-    assert doc.thumbnail_url is None
+    assert doc.thumbnail_path is None
     assert doc.duration_sec is None
+    assert doc.content_hash is None
 
 
 def test_url_import_request_accepts_youtube_url() -> None:
