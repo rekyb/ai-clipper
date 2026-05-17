@@ -5,7 +5,7 @@ import { UploadIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 import { useUploadVideo } from '@/features/import/hooks/useUploadVideo';
-import { midSurface } from '@/features/import/lib/surfaces';
+import { midSurface } from '@/lib/surfaces';
 
 export function UploadDropzone() {
   const { upload, isUploading, error, reset } = useUploadVideo();
@@ -36,7 +36,7 @@ export function UploadDropzone() {
   };
 
   return (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box
         component="button"
         type="button"
@@ -50,6 +50,7 @@ export function UploadDropzone() {
           ...midSurface,
           width: '100%',
           minHeight: 200,
+          flex: 1,
           p: 3,
           display: 'flex',
           alignItems: 'center',

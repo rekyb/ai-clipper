@@ -5,7 +5,7 @@ import { Trash2Icon } from 'lucide-react';
 
 import { StatusChip } from '@/features/import/components/StatusChip';
 import { formatBytes, formatDuration } from '@/features/import/lib/format';
-import { cardSurface } from '@/features/import/lib/surfaces';
+import { cardSurface } from '@/lib/surfaces';
 import type { VideoDocument } from '@/features/import/types';
 import { API_URL } from '@/lib/env';
 
@@ -21,7 +21,14 @@ export function VideoCard({
 
   return (
     <Box
-      sx={{ ...cardSurface, p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      sx={{
+        ...cardSurface,
+        position: 'relative',
+        p: 0,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
       <Box
         sx={{
@@ -67,28 +74,18 @@ export function VideoCard({
         )}
       </Box>
 
-      <Stack spacing={0.5} sx={{ p: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-          <Typography
-            variant="h3"
-            sx={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={video.title}
-          >
-            {video.title || video.filename || 'Untitled'}
-          </Typography>
-          <IconButton
-            aria-label={`delete ${video.title}`}
-            size="small"
-            onClick={() => onDelete(video)}
-          >
-            <Trash2Icon size={18} strokeWidth={1.5} />
-          </IconButton>
-        </Stack>
+      <Stack spacing={0.5} sx={{ p: 2, pr: 7 }}>
+        <Typography
+          variant="h3"
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={video.title}
+        >
+          {video.title || video.filename || 'Untitled'}
+        </Typography>
         <Typography
           component="span"
           sx={{
@@ -108,6 +105,26 @@ export function VideoCard({
           </Typography>
         )}
       </Stack>
+
+      <IconButton
+        aria-label={`delete ${video.title}`}
+        onClick={() => onDelete(video)}
+        sx={{
+          position: 'absolute',
+          bottom: 12,
+          right: 12,
+          width: 36,
+          height: 36,
+          bgcolor: 'transparent',
+          color: 'error.main',
+          border: '1px solid',
+          borderColor: 'error.main',
+          '&:hover': { bgcolor: 'rgba(147, 0, 10, 0.12)', borderColor: 'error.main' },
+          '&:focus-visible': { outline: 'none', boxShadow: '0 0 0 3px rgba(147, 0, 10, 0.35)' },
+        }}
+      >
+        <Trash2Icon size={18} strokeWidth={1.75} />
+      </IconButton>
     </Box>
   );
 }

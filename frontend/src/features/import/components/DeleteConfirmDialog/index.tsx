@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@mui/material';
 
-import { highSurface } from '@/features/import/lib/surfaces';
+import { highSurface } from '@/lib/surfaces';
 
 export function DeleteConfirmDialog({
   open,

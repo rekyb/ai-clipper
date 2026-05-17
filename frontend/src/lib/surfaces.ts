@@ -29,6 +29,13 @@ export const highSurface: SxProps<Theme> = {
   boxShadow: primaryGlow,
 };
 
+export const appBarSurface: SxProps<Theme> = {
+  backgroundColor: surfaceContainerAlpha,
+  backdropFilter: 'blur(20px)',
+  borderBottom: '1px solid',
+  borderColor: subtleBorder,
+};
+
 function withAlpha(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.slice(0, 2), 16);

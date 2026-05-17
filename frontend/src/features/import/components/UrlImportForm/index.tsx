@@ -1,9 +1,11 @@
 'use client';
 
-import { Button, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { LinkIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { useImportUrl } from '@/features/import/hooks/useImportUrl';
+import { midSurface } from '@/lib/surfaces';
 
 const YOUTUBE_HOST_RE = /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\b/i;
 
@@ -25,35 +27,66 @@ export function UrlImportForm() {
   };
 
   return (
-    <Stack component="form" onSubmit={onSubmit} spacing={1.5}>
-      <TextField
-        label="YouTube URL"
-        placeholder="https://youtu.be/..."
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        disabled={isImporting}
-        fullWidth
-        size="small"
-        inputProps={{ 'aria-label': 'YouTube URL' }}
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        color="primary"
-        disabled={isImporting || url.trim().length === 0}
-      >
-        {isImporting ? 'Importing…' : 'Import from URL'}
-      </Button>
-      {hint && (
-        <Typography variant="body2" color="warning.main">
-          {hint}
+    <Box
+      component="form"
+      onSubmit={onSubmit}
+      sx={{
+        ...midSurface,
+        minHeight: 200,
+        height: '100%',
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+          <LinkIcon size={20} strokeWidth={1.5} />
+          <Typography variant="body2">Paste a YouTube link</Typography>
+        </Stack>
+        <TextField
+          placeholder="https://youtu.be/..."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={isImporting}
+          fullWidth
+          inputProps={{ 'aria-label': 'YouTube URL' }}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          size="large"
+          disabled={isImporting || url.trim().length === 0}
+          fullWidth
+        >
+          {isImporting ? 'Importing…' : 'Import from URL'}
+        </Button>
+        <Typography
+          component="span"
+          sx={{
+            fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: 'text.disabled',
+            textAlign: 'center',
+          }}
+        >
+          youtube.com · youtu.be
         </Typography>
-      )}
-      {error && (
-        <Typography variant="body2" color="error.main">
-          {error.message}
-        </Typography>
-      )}
-    </Stack>
+        {hint && (
+          <Typography variant="body2" color="warning.main">
+            {hint}
+          </Typography>
+        )}
+        {error && (
+          <Typography variant="body2" color="error.main">
+            {error.message}
+          </Typography>
+        )}
+      </Stack>
+    </Box>
   );
 }
