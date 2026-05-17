@@ -17,13 +17,13 @@ export function DeleteConfirmDialog({
   onCancel,
   onConfirm,
   isDeleting,
-}: {
+}: Readonly<{
   open: boolean;
   title: string;
   onCancel: () => void;
   onConfirm: () => void;
   isDeleting: boolean;
-}) {
+}>) {
   return (
     <Dialog
       open={open}

@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         stale_uploads_failed=stale,
     )
     yield
-    await close_client()
+    close_client()
     logger.info("shutdown")
 
 

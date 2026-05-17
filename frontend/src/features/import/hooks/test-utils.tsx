@@ -4,7 +4,7 @@ import { SWRConfig } from 'swr';
 
 import { theme } from '@/lib/theme';
 
-export function withFreshSwr({ children }: { children: ReactNode }) {
+export function withFreshSwr({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       {children}
@@ -12,7 +12,7 @@ export function withFreshSwr({ children }: { children: ReactNode }) {
   );
 }
 
-export function withThemeAndSwr({ children }: { children: ReactNode }) {
+export function withThemeAndSwr({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <ThemeProvider theme={theme}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>

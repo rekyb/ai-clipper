@@ -35,7 +35,7 @@ media_router = APIRouter(prefix="/media", tags=["media"])
     "/thumbnails/{filename}",
     responses={404: {"description": "Thumbnail filename invalid or not on disk"}},
 )
-async def serve_thumbnail(
+def serve_thumbnail(
     filename: str,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> FileResponse:

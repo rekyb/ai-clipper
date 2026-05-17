@@ -12,10 +12,10 @@ import { API_URL } from '@/lib/env';
 export function VideoCard({
   video,
   onDelete,
-}: {
+}: Readonly<{
   video: VideoDocument;
   onDelete: (video: VideoDocument) => void;
-}) {
+}>) {
   const thumbUrl = video.thumbnailPath ? buildThumbnailUrl(video.thumbnailPath) : null;
   const created = new Date(video.createdAt).toLocaleDateString();
 

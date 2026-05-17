@@ -7,12 +7,12 @@ export function EmptyState({
   title,
   body,
   cta,
-}: {
+}: Readonly<{
   icon?: ReactNode;
   title: string;
   body: string;
   cta?: ReactNode;
-}) {
+}>) {
   return (
     <Stack
       alignItems="center"

@@ -16,10 +16,10 @@ const OPTIONS: { value: Filter; label: string }[] = [
 export function StatusFilterChips({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: Filter;
   onChange: (next: Filter) => void;
-}) {
+}>) {
   return (
     <Stack direction="row" spacing={1} role="radiogroup" aria-label="Filter videos by status">
       {OPTIONS.map((opt) => {

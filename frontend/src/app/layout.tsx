@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   description: 'Local-first AI video clipping for short-form content.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"

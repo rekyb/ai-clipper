@@ -11,7 +11,7 @@ const VARIANTS: Record<
   failed: { color: 'error', label: 'Failed' },
 };
 
-export function StatusChip({ status }: { status: VideoStatus }) {
+export function StatusChip({ status }: Readonly<{ status: VideoStatus }>) {
   const v = VARIANTS[status];
   return (
     <Chip
