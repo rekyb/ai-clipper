@@ -2,7 +2,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
+_FRONTEND_BIN = Path(__file__).resolve().parents[2] / "frontend" / "node_modules" / ".bin"
+_JSON2TS = _FRONTEND_BIN / ("json2ts.cmd" if sys.platform == "win32" else "json2ts")
+
+
+@pytest.mark.skipif(
+    not _JSON2TS.exists(),
+    reason="json2ts not found in frontend/node_modules/.bin (run pnpm install in frontend/)",
+)
 def test_generate_ts_produces_expected_interfaces() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "scripts.generate_ts"],

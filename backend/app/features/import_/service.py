@@ -3,7 +3,7 @@ import re
 import shutil
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from pathlib import Path, PurePath
+from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
 
 import structlog
@@ -35,7 +35,8 @@ _UNSAFE_CHARS = re.compile(r'[/\\:*?"<>|\x00-\x1f]')
 
 
 def _sanitize_filename(filename: str) -> str:
-    name = PurePath(filename).name
+    # PureWindowsPath recognizes both / and \ as separators on any host OS
+    name = PureWindowsPath(filename).name
     name = _UNSAFE_CHARS.sub("_", name).strip()
     if not name:
         return "video"
