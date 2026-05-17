@@ -4,6 +4,7 @@ import shutil
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
+from urllib.parse import urlparse
 
 import structlog
 from bson import ObjectId
@@ -12,8 +13,10 @@ from app.core.config import Settings
 from app.features.import_.errors import (
     DuplicateVideoError,
     DurationExceededError,
+    InvalidUrlError,
     StorageError,
     UnsupportedFormatError,
+    UnsupportedHostError,
     VideoTooLargeError,
 )
 from app.features.import_.media import (
@@ -150,3 +153,38 @@ async def import_uploaded_file(
     except Exception:
         _cleanup_paths(temp_path, final_path, thumbnail_path, final_dir)
         raise
+
+
+async def import_from_url(
+    *,
+    url: str,
+    repo: VideoRepository,
+    settings: Settings,
+) -> VideoDocument:
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.hostname:
+        raise InvalidUrlError(f"could not parse URL: {url}")
+    if parsed.hostname not in settings.allowed_url_hosts:
+        raise UnsupportedHostError(f"host '{parsed.hostname}' is not allowed; YouTube only")
+
+    video_id = str(ObjectId())
+    now = datetime.now(UTC)
+    placeholder = VideoDocument(
+        id=video_id,
+        filename="",
+        title=url,
+        source=VideoSource.YOUTUBE,
+        source_url=url,
+        storage_path="",
+        thumbnail_path=None,
+        duration_sec=None,
+        file_size_bytes=0,
+        container=None,
+        content_hash=None,
+        status=VideoStatus.UPLOADING,
+        error_code=None,
+        error_message=None,
+        created_at=now,
+        updated_at=now,
+    )
+    return await repo.insert(placeholder)

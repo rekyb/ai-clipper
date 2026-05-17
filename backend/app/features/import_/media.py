@@ -89,3 +89,13 @@ async def hash_stream(reader: AsyncIterator[bytes]) -> tuple[str, int]:
         digest.update(chunk)
         total += len(chunk)
     return digest.hexdigest(), total
+
+
+def hash_file(path: Path, chunk_size: int = 64 * 1024) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    total = 0
+    with path.open("rb") as f:
+        while chunk := f.read(chunk_size):
+            digest.update(chunk)
+            total += len(chunk)
+    return digest.hexdigest(), total
