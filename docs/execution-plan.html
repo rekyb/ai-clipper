@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Clipper — Execution Plan</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.7; color: #1a1a1a; max-width: 960px; margin: 0 auto; padding: 2rem; background: #fafafa; }
+    h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.5rem; margin-top: 3rem; margin-bottom: 1rem; border-bottom: 2px solid #333; padding-bottom: 0.4rem; }
+    h3 { font-size: 1.15rem; margin-top: 1.8rem; margin-bottom: 0.6rem; color: #2c3e50; }
+    h4 { font-size: 1rem; margin-top: 1.2rem; margin-bottom: 0.4rem; color: #34495e; }
+    p { margin-bottom: 0.75rem; }
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.3rem; }
+    code { background: #e8e8e8; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.88em; }
+    pre { background: #2d2d2d; color: #f0f0f0; padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 1rem 0; font-size: 0.82em; line-height: 1.5; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92em; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f0f0f0; font-weight: 600; }
+    .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+    .phase-header { background: #2c3e50; color: #fff; padding: 0.6rem 1rem; border-radius: 6px; margin-top: 3rem; margin-bottom: 1rem; }
+    .phase-header h2 { border: none; margin: 0; padding: 0; color: #fff; font-size: 1.3rem; }
+    .phase-header .days { float: right; font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
+    .deliverables { background: #eaf7ea; border-left: 4px solid #27ae60; padding: 0.8rem 1rem; border-radius: 0 4px 4px 0; margin: 1rem 0; }
+    .deliverables h4 { margin-top: 0; color: #27ae60; }
+    .verification { background: #fef9e7; border-left: 4px solid #f39c12; padding: 0.8rem 1rem; border-radius: 0 4px 4px 0; margin: 1rem 0; }
+    .verification h4 { margin-top: 0; color: #e67e22; }
+    .files { background: #eaf2f8; border-left: 4px solid #3498db; padding: 0.8rem 1rem; border-radius: 0 4px 4px 0; margin: 0.8rem 0; }
+    .files h4 { margin-top: 0; color: #2980b9; font-size: 0.9rem; }
+    .files ul { margin-bottom: 0; }
+    .risk { background: #fdedec; border-left: 4px solid #e74c3c; padding: 0.6rem 1rem; border-radius: 0 4px 4px 0; margin: 0.6rem 0; font-size: 0.9em; }
+    .task-group { margin-left: 0.5rem; padding-left: 1rem; border-left: 2px solid #ddd; margin-bottom: 1.5rem; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.72rem; font-weight: 600; vertical-align: middle; margin-left: 0.3rem; }
+    .badge-high { background: #e74c3c; color: #fff; }
+    .badge-med { background: #f39c12; color: #fff; }
+    .badge-low { background: #27ae60; color: #fff; }
+    .timeline { display: grid; grid-template-columns: auto 1fr auto; gap: 0.3rem 1rem; align-items: center; margin: 1rem 0; }
+    .timeline .dot { width: 12px; height: 12px; border-radius: 50%; background: #3498db; }
+    .tree { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.8rem; line-height: 1.4; background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #e0e0e0; overflow-x: auto; white-space: pre; }
+    nav { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0.6rem 1rem; margin: -2rem -2rem 2rem -2rem; z-index: 10; }
+    nav a { color: #3498db; text-decoration: none; margin-right: 1rem; font-size: 0.85rem; }
+    nav a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#context">Context</a>
+  <a href="#phase1">Phase 1</a>
+  <a href="#phase2">Phase 2</a>
+  <a href="#phase3">Phase 3</a>
+  <a href="#phase4">Phase 4</a>
+  <a href="#phase5">Phase 5</a>
+  <a href="#phase6">Phase 6</a>
+  <a href="#models">Models</a>
+  <a href="#risks">Risks</a>
+  <a href="#structure">Structure</a>
+</nav>
+
+<h1>AI Clipper — Execution Plan</h1>
+<p class="meta">
+  Date: 2026-05-17 &nbsp;|&nbsp; Estimate: 21–27 days (~3-4 weeks) &nbsp;|&nbsp;
+  Hardware: RTX 2000 Ada 8GB VRAM, 64GB RAM, Windows 11
+</p>
+
+<!-- ============ CONTEXT ============ -->
+<h2 id="context">Context &amp; Goals</h2>
+
+<p><strong>Problem:</strong> Creating viral short-form content from long-form videos is manual and expensive (online AI tools cost $30-100+/month).</p>
+<p><strong>Solution:</strong> A local, self-hosted AI pipeline using open-source models — unlimited clip generation at ~$0/month after setup.</p>
+<p><strong>Business goal:</strong> Generate extra monthly income by efficiently producing TikTok-ready clips.</p>
+
+<h3>Architecture</h3>
+<ul>
+  <li><strong>Frontend:</strong> Next.js 15 (TypeScript, MUI v7, pnpm)</li>
+  <li><strong>Backend:</strong> Python FastAPI (transcription, LLM analysis, video processing)</li>
+  <li><strong>AI Models:</strong> Whisper medium (always loaded) + Llama 3.1 8B Q5_K_M (always loaded)</li>
+  <li><strong>Database:</strong> MongoDB (local)</li>
+  <li><strong>Storage:</strong> File-based — <code>media/originals/</code>, <code>media/exports/</code></li>
+  <li><strong>Communication:</strong> REST API + WebSocket (real-time progress)</li>
+</ul>
+
+<h3>Constraints</h3>
+<ul>
+  <li>8GB VRAM budget: Whisper medium (~1.5GB) + Llama 8B Q5 (~2GB) + KV cache + overhead</li>
+  <li>Single-user local app — no auth, no scaling</li>
+  <li>Streaming pipeline: LLM analysis starts while Whisper still processes</li>
+</ul>
+
+<h3>Timeline Overview</h3>
+<table>
+  <tr><th>Phase</th><th>Focus</th><th>Days</th><th>Cumulative</th></tr>
+  <tr><td>1</td><td>Foundation</td><td>2-3</td><td>2-3</td></tr>
+  <tr><td>2</td><td>Transcription</td><td>3-4</td><td>5-7</td></tr>
+  <tr><td>3</td><td>Analysis</td><td>4-5</td><td>9-12</td></tr>
+  <tr><td>4</td><td>UI</td><td>5-6</td><td>14-18</td></tr>
+  <tr><td>5</td><td>Export</td><td>4-5</td><td>18-23</td></tr>
+  <tr><td>6</td><td>Polish</td><td>3-4</td><td>21-27</td></tr>
+</table>
+
+<!-- ============ PHASE 1 ============ -->
+<div class="phase-header" id="phase1"><h2>Phase 1: Foundation<span class="days">2-3 days</span></h2></div>
+
+<p><strong>Goal:</strong> Set up both runtimes, database, project skeleton, and model infrastructure.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>Next.js 15 project with TypeScript, MUI v7, absolute imports</li>
+    <li>FastAPI Python backend with async + WebSocket support</li>
+    <li>MongoDB running locally with empty collections</li>
+    <li>Model directory structure + download scripts</li>
+    <li>Health check endpoints for both services</li>
+    <li>Environment configuration validated</li>
+  </ul>
+</div>
+
+<h3>1.1 Frontend Setup (Next.js)</h3>
+<div class="task-group">
+  <ul>
+    <li>Create Next.js 15 project: <code>pnpm create next-app@latest frontend --typescript --app</code></li>
+    <li>Install deps: <code>@mui/material @emotion/react @emotion/styled vidstack swr</code></li>
+    <li>Configure TypeScript strict mode + path aliases</li>
+    <li>Set up MUI theme provider in <code>src/lib/theme.ts</code></li>
+    <li>Create layout skeleton with AppBar</li>
+    <li>Directory structure: <code>src/app/</code>, <code>src/components/</code>, <code>src/hooks/</code>, <code>src/lib/</code>, <code>src/types/</code></li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/app/layout.tsx</code> — root layout with MUI provider</li>
+      <li><code>src/lib/theme.ts</code> — MUI theme config</li>
+      <li><code>src/lib/api.ts</code> — fetch wrapper for FastAPI</li>
+    </ul>
+  </div>
+</div>
+
+<h3>1.2 Backend Setup (FastAPI)</h3>
+<div class="task-group">
+  <ul>
+    <li>Initialize Python project with <code>uv</code></li>
+    <li>Create directory structure: <code>app/</code>, <code>models/</code>, <code>media/originals/</code>, <code>media/exports/</code></li>
+    <li>Install deps: fastapi, uvicorn, motor, pydantic, python-multipart, faster-whisper, llama-cpp-python, opencv-python, ffmpeg-python, yt-dlp</li>
+    <li>Create FastAPI scaffold with CORS (allow localhost:3000), /health endpoint, WebSocket placeholder</li>
+    <li>Environment config with Pydantic settings validation</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/main.py</code> — FastAPI app, CORS, health check</li>
+      <li><code>backend/app/config.py</code> — env validation</li>
+      <li><code>backend/requirements.txt</code> — all dependencies</li>
+    </ul>
+  </div>
+</div>
+
+<h3>1.3 MongoDB Setup</h3>
+<div class="task-group">
+  <ul>
+    <li>Run MongoDB locally (Docker: <code>mongo:7.0</code> on port 27017, or native install)</li>
+    <li>Create collections: <code>videos</code>, <code>clips</code>, <code>exports</code></li>
+    <li>Add indexes: videos(filename, createdAt), clips(videoId, viralityScore), exports(clipId, createdAt)</li>
+    <li>Create init script: <code>backend/scripts/init_db.py</code></li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/db/client.py</code> — Motor client singleton</li>
+      <li><code>backend/app/db/schemas.py</code> — TypedDict schema definitions</li>
+      <li><code>backend/scripts/init_db.py</code> — DB initialization</li>
+    </ul>
+  </div>
+</div>
+
+<h3>1.4 Model Infrastructure</h3>
+<div class="task-group">
+  <ul>
+    <li>Create directories: <code>models/whisper-medium/</code>, <code>models/llama-3.1-8b-q5/</code></li>
+    <li>Create model loader: <code>load_whisper_medium()</code> + <code>load_llama_8b()</code></li>
+    <li>Create download script with checksum verification</li>
+    <li>Document VRAM budget (1.5GB Whisper + 2GB Llama + 2-3GB overhead = ~5.5-6.5GB)</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/models/loader.py</code> — model loading logic</li>
+      <li><code>backend/scripts/download_models.py</code> — download + verify</li>
+    </ul>
+  </div>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>Frontend: <code>pnpm dev</code> starts on localhost:3000, MUI theme loads, layout renders</li>
+    <li>Backend: <code>uvicorn app.main:app --reload</code> starts on localhost:8000, <code>GET /health</code> returns OK</li>
+    <li>MongoDB: collections exist, schema validation in place</li>
+    <li>Models: directory structure exists, download script is ready</li>
+  </ul>
+</div>
+
+<!-- ============ PHASE 2 ============ -->
+<div class="phase-header" id="phase2"><h2>Phase 2: Transcription<span class="days">3-4 days</span></h2></div>
+
+<p><strong>Goal:</strong> Video import + Whisper integration with real-time WebSocket progress.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>Video upload endpoint (file + URL via yt-dlp)</li>
+    <li>Whisper medium transcription pipeline</li>
+    <li>Word-level transcript with timestamps + confidence</li>
+    <li>WebSocket progress updates during transcription</li>
+    <li>Frontend: upload form, progress bar, transcript display</li>
+  </ul>
+</div>
+
+<h3>2.1 Video Import Endpoint</h3>
+<div class="task-group">
+  <ul>
+    <li><code>POST /api/videos/upload</code> — multipart file upload</li>
+    <li><code>POST /api/videos/download-url</code> — URL download via yt-dlp</li>
+    <li>Validate format (MP4, MKV, AVI, MOV, WebM), generate thumbnail, extract duration</li>
+    <li>Store metadata in MongoDB, return video ID</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/api/videos.py</code> — import endpoints</li>
+      <li><code>backend/app/services/video_processor.py</code> — thumbnail + metadata</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.2 Whisper Integration</h3>
+<div class="task-group">
+  <ul>
+    <li>Create transcription service wrapping faster-whisper</li>
+    <li>Transcribe in segments, emit WebSocket messages per chunk</li>
+    <li>Output: <code>[{word, start, end, confidence}, ...]</code></li>
+    <li>Save transcript to MongoDB, update status to "analyzing"</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/transcription.py</code> — Whisper wrapper</li>
+      <li><code>backend/app/services/job_manager.py</code> — job tracking</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.3 WebSocket Progress</h3>
+<div class="task-group">
+  <ul>
+    <li>WebSocket endpoint: <code>/ws/{job_id}</code></li>
+    <li>Message types: transcription_progress, analysis_progress, error, complete</li>
+    <li>Include: current_segment, total_segments, elapsed_time, ETA</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/api/ws.py</code> — WebSocket endpoint</li>
+      <li><code>backend/app/services/ws_manager.py</code> — connection manager</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.4 Frontend: Upload &amp; Progress UI</h3>
+<div class="task-group">
+  <ul>
+    <li>Drag-and-drop upload + file picker + URL input</li>
+    <li>WebSocket hook for real-time progress</li>
+    <li>Progress bar with percentage + ETA</li>
+    <li>Transcript display with word timestamps and confidence color-coding</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/VideoUpload/index.tsx</code></li>
+      <li><code>src/hooks/useTranscriptionProgress.ts</code></li>
+      <li><code>src/components/TranscriptView/index.tsx</code></li>
+      <li><code>src/lib/ws.ts</code> — WebSocket utility</li>
+    </ul>
+  </div>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>Upload MP4 → video in DB with status "importing" → WebSocket progress → transcript stored</li>
+    <li>URL import (YouTube) → yt-dlp downloads → same flow</li>
+    <li>Frontend shows drag-drop form, progress bar, transcript with timestamps</li>
+    <li>Timestamps accurate within ±100ms, 50+ words/min of video</li>
+  </ul>
+</div>
+
+<!-- ============ PHASE 3 ============ -->
+<div class="phase-header" id="phase3"><h2>Phase 3: Analysis<span class="days">4-5 days</span></h2></div>
+
+<p><strong>Goal:</strong> LLM-powered viral segment detection with scoring and streaming pipeline.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>LLM inference pipeline for transcript analysis</li>
+    <li>Virality scoring (0-100) with 5-factor breakdown</li>
+    <li>Streaming pipeline: LLM starts while Whisper still processing</li>
+    <li>Clip candidates stored in MongoDB</li>
+    <li>Frontend: clip browser with scores, video player with seeking</li>
+  </ul>
+</div>
+
+<h3>3.1 LLM Service</h3>
+<div class="task-group">
+  <ul>
+    <li>Llama wrapper: load on startup, reuse for all analysis</li>
+    <li>GPU context: ~2GB VRAM + RAM offload via llama-cpp-python</li>
+    <li>Prompt engineering for viral scoring (JSON output with examples)</li>
+    <li>Criteria: hook strength, emotional arc, standalone comprehension, curiosity gap, rewatch potential</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/llm.py</code> — Llama wrapper</li>
+      <li><code>backend/app/prompts/viral_scoring.txt</code> — system prompt</li>
+      <li><code>backend/app/utils/scoring.py</code> — weight calculation</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.2 Streaming Analysis Pipeline</h3>
+<div class="task-group">
+  <ul>
+    <li>Split transcript into 60s overlapping windows (30s overlap)</li>
+    <li>For each chunk: extract text → call LLM → parse JSON → score → save</li>
+    <li>Scoring weights: Hook 30% + Emotional 25% + Standalone 20% + Curiosity 15% + Rewatch 10%</li>
+    <li>Emit progress via WebSocket with new clips as they're found</li>
+    <li>Save clips to MongoDB with full score breakdown + reasoning</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/analysis.py</code> — streaming orchestrator</li>
+      <li><code>backend/app/utils/transcript_chunking.py</code> — windowing logic</li>
+      <li><code>backend/app/api/clips.py</code> — GET clips endpoint</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.3 Frontend: Video Player + Clip Browser</h3>
+<div class="task-group">
+  <ul>
+    <li>Video player (vidstack): playback, seek, speed control, timestamp display</li>
+    <li>Clip browser: ranked card list with score badge, timestamp, preview text, reasoning</li>
+    <li>Click clip card → player seeks to timestamp</li>
+    <li>Video detail page: player (left) + clip browser (right)</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/VideoPlayer/index.tsx</code></li>
+      <li><code>src/components/ClipBrowser/index.tsx</code></li>
+      <li><code>src/components/ClipCard/index.tsx</code></li>
+      <li><code>src/app/video/[id]/page.tsx</code></li>
+      <li><code>src/hooks/useClipList.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>LLM loads, produces valid JSON, scores distributed (not all same value)</li>
+    <li>Streaming pipeline: WebSocket emits progress as chunks analyzed (&lt;5 min for 1hr video)</li>
+    <li>Clips stored with full breakdown + reasoning</li>
+    <li>Frontend: player seeks on clip click, scores visualized correctly</li>
+  </ul>
+</div>
+
+<!-- ============ PHASE 4 ============ -->
+<div class="phase-header" id="phase4"><h2>Phase 4: UI<span class="days">5-6 days</span></h2></div>
+
+<p><strong>Goal:</strong> Complete dashboard, timeline editor, clip selection, and responsive design.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>Dashboard with video library grid</li>
+    <li>Timeline editor for clip timestamp adjustment</li>
+    <li>9:16 preview panel with simulated captions</li>
+    <li>Clip selection (single + batch)</li>
+    <li>Loading skeletons, error states, empty states</li>
+    <li>Responsive layout (mobile → desktop)</li>
+  </ul>
+</div>
+
+<h3>4.1 Dashboard</h3>
+<div class="task-group">
+  <ul>
+    <li>Grid of video cards: thumbnail, title, duration, clip count, status badge</li>
+    <li>Import button (prominent), sort options, search filter</li>
+    <li>SWR for data fetching with polling for "processing" items</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/app/page.tsx</code> — dashboard</li>
+      <li><code>src/components/VideoCard/index.tsx</code></li>
+      <li><code>src/hooks/useVideos.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.2 Timeline Editor</h3>
+<div class="task-group">
+  <ul>
+    <li>Visual timeline with clip markers</li>
+    <li>Drag handles for start/end adjustment (±0.5s precision)</li>
+    <li>Duration constraint: 30-60s</li>
+    <li>Synced with video player (drag → seek)</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/TimelineEditor/index.tsx</code></li>
+      <li><code>src/hooks/useTimelineEditor.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.3 Clip Preview &amp; Selection</h3>
+<div class="task-group">
+  <ul>
+    <li>Click-to-select clips, show selected count, batch export button</li>
+    <li>9:16 preview panel showing simulated crop + caption overlay</li>
+    <li>Caption settings preview: font, color, size, position</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/ClipPreview/index.tsx</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.4 States &amp; Responsiveness</h3>
+<div class="task-group">
+  <ul>
+    <li>Loading skeletons (MUI Skeleton), error boundaries, empty states</li>
+    <li>Navigation breadcrumbs, toast notifications</li>
+    <li>Responsive: mobile (375px) stacked, tablet (768px) two-col, desktop (1280px) full</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/ErrorBoundary.tsx</code></li>
+      <li><code>src/components/Navigation/index.tsx</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>Dashboard loads video list, cards display correctly, navigation works</li>
+    <li>Timeline editor: drag handles update player, duration stays 30-60s</li>
+    <li>9:16 preview shows crop + captions, settings update in real-time</li>
+    <li>Responsive at 375px, 768px, 1280px widths</li>
+  </ul>
+</div>
+
+<!-- ============ PHASE 5 ============ -->
+<div class="phase-header" id="phase5"><h2>Phase 5: Export<span class="days">4-5 days</span></h2></div>
+
+<p><strong>Goal:</strong> Full video processing pipeline — extract, crop, caption, and export TikTok-ready clips.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>FFmpeg clip extraction + smart crop (face/motion-aware)</li>
+    <li>Whisper large-v3 re-transcription for precise caption timing</li>
+    <li>Animated word-by-word captions burned into video</li>
+    <li>H.264 MP4 export at 1080x1920, 30fps</li>
+    <li>Export queue with stage-by-stage progress</li>
+    <li>Export history per video</li>
+  </ul>
+</div>
+
+<h3>5.1 FFmpeg &amp; Smart Crop</h3>
+<div class="task-group">
+  <ul>
+    <li>FFmpeg wrapper: extract clip, crop, apply captions, encode H.264</li>
+    <li>OpenCV face/motion detection for crop positioning</li>
+    <li>Algorithm: sample frames → detect faces/motion → center bounding box → crop 9:16</li>
+    <li>Fallback: center crop if no face/motion detected</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/video_export.py</code></li>
+      <li><code>backend/app/services/crop_detection.py</code></li>
+      <li><code>backend/app/utils/ffmpeg_utils.py</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>5.2 Caption Generation</h3>
+<div class="task-group">
+  <ul>
+    <li>Whisper large-v3: lazy-loaded on first export, re-transcribes 30-60s clip for precise word timing</li>
+    <li>Caption rendering via PIL/Pillow: word-by-word animation (fade/highlight)</li>
+    <li>Configurable: font, size, color, position (top/center/bottom)</li>
+    <li>Burn captions into video via FFmpeg overlay</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/caption_generation.py</code></li>
+      <li><code>backend/app/services/captions.py</code></li>
+      <li><code>backend/app/utils/caption_renderer.py</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>5.3 Export Orchestrator</h3>
+<div class="task-group">
+  <ul>
+    <li>Pipeline: extract → crop → re-transcribe → render captions → burn → encode</li>
+    <li>WebSocket progress per stage (extracting, cropping, transcribing, rendering, burning, encoding)</li>
+    <li>Save to <code>media/exports/{video_id}/{clip_id}.mp4</code></li>
+    <li>Update MongoDB: clip.exported = true, create Export document</li>
+    <li>Error recovery: log failure, allow retry</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/export_orchestrator.py</code></li>
+      <li><code>backend/app/api/exports.py</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>5.4 Frontend: Export UI</h3>
+<div class="task-group">
+  <ul>
+    <li>Export settings modal: font, size, color, position</li>
+    <li>Export progress component: stage indicator + progress bar per export</li>
+    <li>Export history tab: list of all exports with download button</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/components/ExportModal/index.tsx</code></li>
+      <li><code>src/components/ExportProgress/index.tsx</code></li>
+      <li><code>src/components/ExportHistory/index.tsx</code></li>
+      <li><code>src/hooks/useExportProgress.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>Export pipeline end-to-end: select clip → settings → export → MP4 on disk</li>
+    <li>Output: 1080x1920, H.264, 30fps, 30-60s duration</li>
+    <li>Captions: readable, properly positioned, word timing within 100ms</li>
+    <li>Export completes in &lt;5 min for 45s clip</li>
+    <li>No VRAM OOM during export</li>
+  </ul>
+</div>
+
+<!-- ============ PHASE 6 ============ -->
+<div class="phase-header" id="phase6"><h2>Phase 6: Polish<span class="days">3-4 days</span></h2></div>
+
+<p><strong>Goal:</strong> Topic search, history management, error handling, performance, and documentation.</p>
+
+<div class="deliverables">
+  <h4>Deliverables</h4>
+  <ul>
+    <li>Topic search: find clips by keyword/description</li>
+    <li>History &amp; library with filtering</li>
+    <li>Comprehensive error handling + user feedback</li>
+    <li>Performance optimization (caching, lazy loading)</li>
+    <li>Documentation (setup, user guide, README)</li>
+  </ul>
+</div>
+
+<h3>6.1 Topic Search</h3>
+<div class="task-group">
+  <ul>
+    <li>Backend: <code>POST /api/videos/{id}/search</code> with query string</li>
+    <li>LLM searches transcript for matching segments</li>
+    <li>Combined scoring: relevance (40%) + virality (60%)</li>
+    <li>Frontend: search input above clip list, results in separate tab</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>backend/app/services/search.py</code></li>
+      <li><code>backend/app/api/search.py</code></li>
+      <li><code>src/components/TopicSearch/index.tsx</code></li>
+      <li><code>src/hooks/useTopicSearch.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>6.2 History &amp; Filtering</h3>
+<div class="task-group">
+  <ul>
+    <li>Dashboard filters: status, date range, clip count</li>
+    <li>Export history page: all exports across videos with download/delete</li>
+    <li>Sort by date, name, clip count</li>
+  </ul>
+  <div class="files">
+    <h4>Key Files</h4>
+    <ul>
+      <li><code>src/app/exports/page.tsx</code></li>
+      <li><code>src/hooks/useVideoFilters.ts</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>6.3 Error Handling &amp; Optimization</h3>
+<div class="task-group">
+  <ul>
+    <li>Standardize errors: <code>{error: {code, message}}</code></li>
+    <li>Toast notifications, retry buttons, user-friendly messages</li>
+    <li>GPU memory monitoring + logging</li>
+    <li>Lazy-load Whisper large-v3, cache after first use</li>
+    <li>Code splitting, image optimization, SWR caching</li>
+  </ul>
+</div>
+
+<h3>6.4 Documentation &amp; QA</h3>
+<div class="task-group">
+  <ul>
+    <li>Setup guide: system requirements, installation, model download, running</li>
+    <li>User guide: import → browse → search → export workflow</li>
+    <li>README with quick start</li>
+    <li>Full manual testing checklist</li>
+    <li>Performance benchmarks: transcription &lt;2min/hr, analysis &lt;5min/hr, export &lt;5min/clip</li>
+  </ul>
+</div>
+
+<div class="verification">
+  <h4>Verification</h4>
+  <ul>
+    <li>Topic search returns relevant results with combined scores</li>
+    <li>Filters work, export history accessible</li>
+    <li>All errors have user-friendly messages + retry</li>
+    <li>1hr video processes in &lt;7 min total, no VRAM OOM</li>
+    <li>Responsive at all breakpoints, no console errors, no TS errors</li>
+  </ul>
+</div>
+
+<!-- ============ MODELS ============ -->
+<h2 id="models">Model Setup &amp; Configuration</h2>
+
+<table>
+  <tr><th>Model</th><th>Size</th><th>VRAM</th><th>Loading</th><th>Purpose</th></tr>
+  <tr><td>Whisper medium</td><td>~1.5GB</td><td>~1.5GB</td><td>Always loaded on startup</td><td>Fast transcription</td></tr>
+  <tr><td>Llama 3.1 8B Q5_K_M</td><td>~5GB</td><td>~2GB + RAM</td><td>Always loaded on startup</td><td>Viral analysis + topic search</td></tr>
+  <tr><td>Whisper large-v3</td><td>~3GB</td><td>~3GB</td><td>Lazy-loaded on first export</td><td>Precise caption timing</td></tr>
+</table>
+
+<h3>VRAM Budget</h3>
+<pre>
+Whisper medium (float16):     ~1.5 GB
+Llama 3.1 8B Q5 (partial):   ~2.0 GB  (rest offloaded to 64GB RAM)
+KV cache + inference:         ~2.0 GB
+────────────────────────────────────
+Total steady state:           ~5.5 GB  (within 8GB budget)
+
+During export (Whisper large-v3 loaded):
+  Swap: unload Whisper medium temporarily
+  Load Whisper large-v3:      ~3.0 GB
+  Total during export:        ~7.0 GB  (tight but feasible)
+</pre>
+
+<h3>Download Commands</h3>
+<pre>
+# Run from backend/scripts/
+python download_models.py
+
+# Downloads:
+#   Whisper medium → models/whisper-medium/ (~1.5GB)
+#   Llama 3.1 8B Q5_K_M → models/llama-3.1-8b-q5/ (~5GB)
+#
+# Whisper large-v3 downloaded separately on first export:
+python download_whisper_large.py  # → models/whisper-large-v3/ (~3GB)
+</pre>
+
+<!-- ============ RISKS ============ -->
+<h2 id="risks">Risks &amp; Mitigations</h2>
+
+<div class="risk">
+  <strong>VRAM Contention</strong> <span class="badge badge-high">High Impact</span> <span class="badge badge-med">Med Probability</span><br>
+  Both models + inference may exceed 8GB. <em>Mitigation:</em> Q5 quantization, float16, RAM offload, VRAM monitoring, disable large-v3 if needed.
+</div>
+
+<div class="risk">
+  <strong>LLM Prompt Reliability</strong> <span class="badge badge-med">Med Impact</span> <span class="badge badge-med">Med Probability</span><br>
+  8B model may not always return valid JSON or accurate scores. <em>Mitigation:</em> Detailed prompt with examples, JSON validation, default score on parse error, iterative prompt tuning.
+</div>
+
+<div class="risk">
+  <strong>Poor Virality Score Accuracy</strong> <span class="badge badge-med">Med Impact</span> <span class="badge badge-high">High Probability</span><br>
+  AI-suggested clips may not actually be viral. <em>Mitigation:</em> Conservative threshold (≥60), user feedback loop, prompt iteration, treat as AI-assisted not magic.
+</div>
+
+<div class="risk">
+  <strong>Export Time Too Long</strong> <span class="badge badge-med">Med Impact</span> <span class="badge badge-med">Med Probability</span><br>
+  Export may take >10 min. <em>Mitigation:</em> FFmpeg preset "fast", H.264 (not HEVC), progress UI, background queue.
+</div>
+
+<div class="risk">
+  <strong>Video Format Compatibility</strong> <span class="badge badge-low">Low Impact</span> <span class="badge badge-med">Med Probability</span><br>
+  Unsupported codecs (VP9, AV1). <em>Mitigation:</em> Validate with ffprobe, re-encode if needed, document supported formats.
+</div>
+
+<div class="risk">
+  <strong>Caption Timing Misalignment</strong> <span class="badge badge-low">Low Impact</span> <span class="badge badge-low">Low Probability</span><br>
+  Captions drift from audio. <em>Mitigation:</em> Whisper large-v3 for re-transcription, preview before export.
+</div>
+
+<!-- ============ STRUCTURE ============ -->
+<h2 id="structure">File Structure</h2>
+
+<div class="tree">ai-clipper/
+├── frontend/                    # Next.js 15
+│   ├── src/
+│   │   ├── app/                # App Router pages
+│   │   │   ├── page.tsx        # Dashboard
+│   │   │   ├── layout.tsx      # Root layout
+│   │   │   ├── video/[id]/page.tsx
+│   │   │   └── exports/page.tsx
+│   │   ├── components/         # React components
+│   │   │   ├── VideoUpload/
+│   │   │   ├── VideoPlayer/
+│   │   │   ├── ClipBrowser/
+│   │   │   ├── ClipCard/
+│   │   │   ├── TimelineEditor/
+│   │   │   ├── ClipPreview/
+│   │   │   ├── ExportModal/
+│   │   │   ├── ExportProgress/
+│   │   │   ├── TopicSearch/
+│   │   │   └── ExportHistory/
+│   │   ├── hooks/              # Custom hooks
+│   │   │   ├── useTranscriptionProgress.ts
+│   │   │   ├── useClipList.ts
+│   │   │   ├── useVideoPlayer.ts
+│   │   │   ├── useTopicSearch.ts
+│   │   │   ├── useExportProgress.ts
+│   │   │   └── useVideos.ts
+│   │   ├── lib/                # Utilities
+│   │   │   ├── api.ts
+│   │   │   ├── ws.ts
+│   │   │   ├── theme.ts
+│   │   │   └── error_handler.ts
+│   │   └── types/
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── backend/                     # FastAPI (Python)
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── api/               # Endpoints
+│   │   │   ├── videos.py
+│   │   │   ├── clips.py
+│   │   │   ├── exports.py
+│   │   │   ├── search.py
+│   │   │   └── ws.py
+│   │   ├── services/          # Business logic
+│   │   │   ├── transcription.py
+│   │   │   ├── analysis.py
+│   │   │   ├── llm.py
+│   │   │   ├── export_orchestrator.py
+│   │   │   ├── crop_detection.py
+│   │   │   ├── captions.py
+│   │   │   ├── video_export.py
+│   │   │   ├── search.py
+│   │   │   └── ws_manager.py
+│   │   ├── schemas/           # Pydantic models
+│   │   ├── db/                # Database
+│   │   ├── models/            # Model loaders
+│   │   ├── prompts/           # LLM prompts
+│   │   └── utils/             # Helpers
+│   ├── models/                # AI models (downloaded)
+│   │   ├── whisper-medium/
+│   │   ├── llama-3.1-8b-q5/
+│   │   └── whisper-large-v3/
+│   ├── media/
+│   │   ├── originals/
+│   │   └── exports/
+│   ├── scripts/
+│   └── requirements.txt
+│
+├── docs/
+│   ├── ai-clipper-spec.html
+│   ├── execution-plan.html
+│   ├── SETUP.md
+│   └── USER_GUIDE.md
+│
+└── README.md</div>
+
+<!-- ============ SUCCESS ============ -->
+<h2>Success Criteria</h2>
+<ol>
+  <li>Upload a long-form video (file or URL)</li>
+  <li>Whisper transcribes in real-time (&lt;2 min per hour of video)</li>
+  <li>LLM identifies viral segments with scores (&lt;5 min per hour)</li>
+  <li>UI displays ranked candidates with previews</li>
+  <li>User can select and adjust clip timestamps</li>
+  <li>Export as TikTok-ready MP4 (1080x1920, animated captions)</li>
+  <li>Topic search finds relevant segments</li>
+  <li>History shows all videos and exports</li>
+  <li>Helpful error messages, no cryptic failures</li>
+  <li>Documented and repeatable setup</li>
+</ol>
+
+</body>
+</html>

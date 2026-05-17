@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Clipper — Product Spec</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 2rem; background: #fafafa; }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 1rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    p, li { margin-bottom: 0.5rem; }
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    code { background: #e8e8e8; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.9em; }
+    pre { background: #2d2d2d; color: #f0f0f0; padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 1rem 0; font-size: 0.85em; line-height: 1.5; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.6rem 0.8rem; text-align: left; }
+    th { background: #f0f0f0; font-weight: 600; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-mvp { background: #d4edda; color: #155724; }
+    .badge-future { background: #fff3cd; color: #856404; }
+    .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+    .diagram { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 1.5rem; margin: 1rem 0; font-family: monospace; white-space: pre; font-size: 0.8rem; line-height: 1.4; overflow-x: auto; }
+    section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+
+<h1>AI Clipper</h1>
+<p class="meta">Product Specification — v1.0 | 2026-05-17 | Local-first AI video clipping tool</p>
+
+<section>
+  <h2>1. Overview</h2>
+  <p><strong>Problem:</strong> Creating viral short-form TikTok content from long-form videos is time-consuming. Online AI tools are expensive for regular use.</p>
+  <p><strong>Solution:</strong> A local web-based app that uses open-source AI models to automatically identify viral-worthy segments from long videos, score them, and export polished 30-60 second clips ready for TikTok.</p>
+  <p><strong>Goal:</strong> Generate extra monthly income by efficiently producing viral short-form content from existing long-form videos.</p>
+  <p><strong>User:</strong> Single user (developer), running locally on personal machine.</p>
+</section>
+
+<section>
+  <h2>2. Architecture</h2>
+  <div class="diagram">
+┌─────────────────────────────────────────────────────┐
+│              Next.js 15 Frontend (MUI v7)            │
+│   Upload | Preview | Clip Browser | Export          │
+└────────────────────────┬────────────────────────────┘
+                         │ REST API + WebSocket
+┌────────────────────────┴────────────────────────────┐
+│                 FastAPI Backend (Python)              │
+│                                                      │
+│  ┌────────────┐  ┌────────────┐  ┌──────────────┐  │
+│  │  Whisper   │  │  Llama 3.1 │  │   FFmpeg +   │  │
+│  │  (medium)  │  │  8B Q5_K_M │  │   OpenCV     │  │
+│  │  1.5GB GPU │  │  2GB GPU+  │  │   CPU-based  │  │
+│  │  always on │  │  RAM offload│  │              │  │
+│  └────────────┘  └────────────┘  └──────────────┘  │
+│                                                      │
+│  ┌────────────────────────────────────────────────┐ │
+│  │         MongoDB (jobs, clips, metadata)         │ │
+│  └────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+
+Storage: media/originals/  |  media/exports/
+Models:  models/whisper-medium  |  models/llama-3.1-8b-q5.gguf
+  </div>
+
+  <h3>Key Architectural Decisions</h3>
+  <ul>
+    <li><strong>Two-runtime split:</strong> Python handles AI/video natively; Next.js provides responsive UI</li>
+    <li><strong>MongoDB:</strong> Stores job state, clip metadata, virality scores, export history</li>
+    <li><strong>WebSocket:</strong> Real-time progress updates during processing</li>
+    <li><strong>Both models always loaded:</strong> Whisper medium (~1.5GB VRAM) + Llama 8B Q5 (~2GB VRAM + RAM offload) coexist within 8GB VRAM budget</li>
+    <li><strong>Streaming pipeline:</strong> LLM analysis starts on early transcript chunks while Whisper still processes later portions</li>
+    <li><strong>File-based media storage:</strong> No blob store needed for single-user local app</li>
+  </ul>
+</section>
+
+<section>
+  <h2>3. Hardware Requirements</h2>
+  <table>
+    <tr><th>Component</th><th>Spec</th><th>Usage</th></tr>
+    <tr><td>GPU</td><td>NVIDIA RTX 2000 Ada (8GB VRAM)</td><td>Whisper + LLM inference</td></tr>
+    <tr><td>RAM</td><td>64GB</td><td>LLM offload, video processing buffer</td></tr>
+    <tr><td>Storage</td><td>SSD recommended</td><td>Model files (~10GB), media files</td></tr>
+    <tr><td>OS</td><td>Windows 11</td><td>Development and runtime</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>4. AI Pipeline</h2>
+
+  <h3>Stage 1: Transcription</h3>
+  <ul>
+    <li><strong>Model:</strong> Whisper medium (faster-whisper / CTranslate2)</li>
+    <li><strong>Input:</strong> Video/audio file (any format)</li>
+    <li><strong>Output:</strong> Word-level timestamped transcript with confidence scores</li>
+    <li><strong>Performance:</strong> ~1-2 min for a 1-hour video</li>
+    <li><strong>Features:</strong> Multi-language support, speaker detection</li>
+  </ul>
+
+  <h3>Stage 2: Viral Segment Analysis</h3>
+  <ul>
+    <li><strong>Model:</strong> Llama 3.1 8B Q5_K_M (llama-cpp-python)</li>
+    <li><strong>Input:</strong> Timestamped transcript in overlapping windows</li>
+    <li><strong>Processing:</strong> Runs in parallel with Stage 1 (streaming pipeline)</li>
+    <li><strong>Output:</strong> Ranked candidate clips with structured JSON</li>
+  </ul>
+
+  <h3>Virality Scoring (0-100)</h3>
+  <table>
+    <tr><th>Factor</th><th>Weight</th><th>Description</th></tr>
+    <tr><td>Hook Strength</td><td>30%</td><td>Opening line grabs attention immediately</td></tr>
+    <tr><td>Emotional Arc</td><td>25%</td><td>Builds tension, surprise, humor, or insight</td></tr>
+    <tr><td>Standalone Comprehension</td><td>20%</td><td>Makes sense without full video context</td></tr>
+    <tr><td>Curiosity Gap</td><td>15%</td><td>Creates desire to watch until the end</td></tr>
+    <tr><td>Rewatch Potential</td><td>10%</td><td>Worth watching again or sharing</td></tr>
+  </table>
+
+  <h3>Stage 3: Video Processing</h3>
+  <ul>
+    <li><strong>Tools:</strong> FFmpeg + OpenCV</li>
+    <li><strong>Steps:</strong>
+      <ol>
+        <li>Extract clip at identified timestamps (±2s padding)</li>
+        <li>Smart crop to 9:16 (face/motion detection for crop position)</li>
+        <li>Re-transcribe clip with Whisper large-v3 for precise word timing</li>
+        <li>Generate animated word-by-word captions</li>
+        <li>Burn captions into video</li>
+        <li>Export as H.264 MP4 (TikTok-optimized: 1080x1920, 30fps)</li>
+      </ol>
+    </li>
+  </ul>
+</section>
+
+<section>
+  <h2>5. Features (MVP)</h2>
+
+  <h3>Feature 1: Video Import <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Drag-and-drop or file picker for local video files</li>
+    <li>Supported formats: MP4, MKV, AVI, MOV, WebM</li>
+    <li>URL paste → auto-download via yt-dlp (YouTube, social media)</li>
+    <li>Display thumbnail, duration, file size after import</li>
+    <li>Store metadata in MongoDB</li>
+  </ul>
+
+  <h3>Feature 2: AI Transcription & Analysis <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Auto-transcribe on import with streaming progress (WebSocket)</li>
+    <li>LLM analyzes in parallel, identifies viral candidates</li>
+    <li>Results: ranked list of candidate clips by virality score</li>
+    <li>Each candidate shows: timestamp range, transcript preview, score breakdown, reasoning</li>
+  </ul>
+
+  <h3>Feature 3: Topic Search <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Text input to describe what you're looking for</li>
+    <li>LLM searches transcript, returns matching segments with relevance + virality scores</li>
+    <li>Combinable with auto-detected candidates (filter/re-rank)</li>
+  </ul>
+
+  <h3>Feature 4: Clip Preview & Selection <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Click candidate → video player seeks to timestamp</li>
+    <li>Drag handles to adjust start/end points</li>
+    <li>Preview clip in 9:16 with simulated caption overlay</li>
+    <li>Select/deselect clips for batch export</li>
+  </ul>
+
+  <h3>Feature 5: Export & Post-Processing <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Smart crop to 9:16 (face/motion-aware)</li>
+    <li>Re-transcribe with Whisper large-v3 for precise captions</li>
+    <li>Animated word-by-word captions (configurable font, size, color, position)</li>
+    <li>Export as TikTok-ready MP4 (1080x1920, H.264)</li>
+    <li>Save to <code>media/exports/</code> with metadata</li>
+  </ul>
+
+  <h3>Feature 6: History & Library <span class="badge badge-mvp">MVP</span></h3>
+  <ul>
+    <li>Dashboard of all processed videos and exported clips</li>
+    <li>Re-open past analyses without re-processing</li>
+    <li>Track export history per video</li>
+  </ul>
+</section>
+
+<section>
+  <h2>6. Future Features</h2>
+  <ul>
+    <li><span class="badge badge-future">v2</span> Background music overlay</li>
+    <li><span class="badge badge-future">v2</span> Multiple caption style templates</li>
+    <li><span class="badge badge-future">v2</span> B-roll insertion from stock footage</li>
+    <li><span class="badge badge-future">v3</span> Batch processing (queue multiple videos)</li>
+    <li><span class="badge badge-future">v3</span> Direct TikTok upload via API</li>
+    <li><span class="badge badge-future">v3</span> Performance analytics (track which clips went viral)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>7. Tech Stack</h2>
+
+  <h3>Frontend</h3>
+  <table>
+    <tr><th>Technology</th><th>Purpose</th></tr>
+    <tr><td>Next.js 15 (App Router)</td><td>Web framework</td></tr>
+    <tr><td>TypeScript (strict)</td><td>Type safety</td></tr>
+    <tr><td>MUI v7</td><td>UI component library</td></tr>
+    <tr><td>vidstack or react-player</td><td>Video playback with seeking</td></tr>
+    <tr><td>SWR</td><td>Data fetching / cache</td></tr>
+    <tr><td>WebSocket (native)</td><td>Real-time progress updates</td></tr>
+  </table>
+
+  <h3>Backend</h3>
+  <table>
+    <tr><th>Technology</th><th>Purpose</th></tr>
+    <tr><td>FastAPI (Python)</td><td>API server with async + WebSocket</td></tr>
+    <tr><td>faster-whisper</td><td>Transcription (CTranslate2-based)</td></tr>
+    <tr><td>llama-cpp-python</td><td>Local LLM inference</td></tr>
+    <tr><td>ffmpeg-python</td><td>Video processing</td></tr>
+    <tr><td>OpenCV</td><td>Face/motion detection for smart crop</td></tr>
+    <tr><td>yt-dlp</td><td>Video download from URLs</td></tr>
+    <tr><td>Motor or PyMongo</td><td>MongoDB driver</td></tr>
+  </table>
+
+  <h3>Infrastructure</h3>
+  <table>
+    <tr><th>Component</th><th>Details</th></tr>
+    <tr><td>MongoDB</td><td>Local instance (Docker or native)</td></tr>
+    <tr><td>Model storage</td><td><code>models/</code> directory (~10GB total)</td></tr>
+    <tr><td>Media storage</td><td><code>media/originals/</code> + <code>media/exports/</code></td></tr>
+    <tr><td>Package managers</td><td>pnpm (frontend), uv (Python backend)</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>8. Data Flow</h2>
+  <div class="diagram">
+User uploads video (file or URL)
+  │
+  ├─► Backend stores file → creates Job document (status: "transcribing")
+  │
+  ├─► Whisper medium transcribes → word-level timestamps
+  │     │
+  │     └─► Streams chunks to LLM as they complete
+  │
+  ├─► LLM analyzes chunks → candidate clips with virality scores
+  │     │
+  │     └─► Saved to MongoDB (status: "ready")
+  │
+  ├─► Frontend displays ranked candidates
+  │
+  ├─► User browses, previews, adjusts timestamps
+  │
+  └─► User exports selected clip:
+        ├─► Whisper large-v3 re-transcribes 30-60s segment
+        ├─► FFmpeg extracts + crops to 9:16
+        ├─► Captions generated + burned in
+        └─► Final MP4 saved (status: "exported")
+  </div>
+</section>
+
+<section>
+  <h2>9. MongoDB Schema</h2>
+  <pre>
+// Videos collection
+{
+  _id: ObjectId,
+  filename: string,
+  originalPath: string,
+  sourceUrl: string | null,
+  duration: number,          // seconds
+  fileSize: number,          // bytes
+  thumbnail: string,         // path to generated thumbnail
+  status: "importing" | "transcribing" | "analyzing" | "ready" | "error",
+  transcript: [{
+    word: string,
+    start: number,
+    end: number,
+    confidence: number
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+
+// Clips collection
+{
+  _id: ObjectId,
+  videoId: ObjectId,
+  startTime: number,
+  endTime: number,
+  transcript: string,        // text content of segment
+  viralityScore: number,     // 0-100
+  scoreBreakdown: {
+    hookStrength: number,
+    emotionalArc: number,
+    standalone: number,
+    curiosityGap: number,
+    rewatchPotential: number
+  },
+  reasoning: string,         // LLM explanation
+  source: "auto" | "search",
+  searchQuery: string | null,
+  exported: boolean,
+  exportPath: string | null,
+  createdAt: Date
+}
+
+// Exports collection
+{
+  _id: ObjectId,
+  clipId: ObjectId,
+  videoId: ObjectId,
+  outputPath: string,
+  settings: {
+    captionFont: string,
+    captionSize: number,
+    captionColor: string,
+    captionPosition: "bottom" | "center" | "top"
+  },
+  duration: number,
+  createdAt: Date
+}
+  </pre>
+</section>
+
+<section>
+  <h2>10. UI Layout (Wireframe Description)</h2>
+  <ul>
+    <li><strong>Dashboard (/):</strong> Grid of processed videos with thumbnails, clip counts, last activity. Import button prominent.</li>
+    <li><strong>Video View (/video/:id):</strong> Split layout — video player (top/left) + clip candidates list (right/bottom). Each clip card shows score, timestamp, preview text. Click to seek.</li>
+    <li><strong>Clip Editor:</strong> Inline within video view. Timeline with drag handles, 9:16 preview panel, caption settings, export button.</li>
+    <li><strong>Search:</strong> Text input above clip list. Results replace/filter the auto-detected candidates.</li>
+    <li><strong>Export Queue:</strong> Bottom drawer showing export progress for selected clips.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>11. Development Phases</h2>
+  <table>
+    <tr><th>Phase</th><th>Features</th><th>Estimated Effort</th></tr>
+    <tr><td>Phase 1: Foundation</td><td>Project setup, MongoDB, FastAPI skeleton, Next.js scaffold, model loading</td><td>2-3 days</td></tr>
+    <tr><td>Phase 2: Transcription</td><td>Video import, Whisper integration, transcript storage, progress WebSocket</td><td>3-4 days</td></tr>
+    <tr><td>Phase 3: Analysis</td><td>LLM integration, viral detection prompts, scoring, streaming pipeline</td><td>4-5 days</td></tr>
+    <tr><td>Phase 4: UI</td><td>Dashboard, video player, clip browser, preview, timeline editor</td><td>5-6 days</td></tr>
+    <tr><td>Phase 5: Export</td><td>FFmpeg processing, smart crop, caption generation, final export</td><td>4-5 days</td></tr>
+    <tr><td>Phase 6: Polish</td><td>Topic search, history, error handling, performance tuning</td><td>3-4 days</td></tr>
+  </table>
+  <p><strong>Total estimated MVP:</strong> ~3-4 weeks of focused development</p>
+</section>
+
+</body>
+</html>
