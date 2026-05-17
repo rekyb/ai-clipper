@@ -4,6 +4,49 @@ Newest entries on top.
 
 ---
 
+## [2026-05-17] GitHub Actions CI Setup
+
+### Implementation Log
+- **Workflow:** `.github/workflows/ci.yml` — two parallel jobs (`backend`, `frontend`) gated on PRs to `main` + pushes to `main`. Concurrency group cancels in-progress runs on new pushes.
+- **backend job:** Ubuntu, MongoDB 7 service container, ffmpeg via apt, Python 3.12 via `astral-sh/setup-uv@v3` (cached on `backend/uv.lock`), `uv sync --no-install-project`, then `ruff format --check` → `ruff check` → `mypy app/` → `pytest -m "not slow"`.
+- **frontend job:** Ubuntu, `pnpm/action-setup@v4` v11 (matches local), `actions/setup-node@v4` Node 22 (pnpm 11 requires Node ≥22.13 — uses `node:sqlite` builtin), pnpm-cache via setup-node, `pnpm install --frozen-lockfile` → `lint` → `vitest` → `next build`.
+- **Excluded deliberately:** Playwright E2E (needs full backend + Mongo + ffmpeg + frontend simultaneously — too heavy/flaky for every PR), AI/video extras (`uv sync` without `--extra ai --extra video` keeps backend job under ~1 min), path filters (small project, branch protection semantics simpler with always-on jobs).
+- **Branch protection:** user-configured in GitHub UI (Settings → Branches → ruleset on `main`, require `backend` + `frontend` checks).
+
+### Patterns (worked well)
+- **Mirror local tooling versions in CI exactly.** `pnpm --version` locally before pinning a version in the workflow. Lockfile compatibility ≠ runtime compatibility; the lockfile-producer version is what matters.
+- **`uv sync --no-install-project` is fine** for this repo because `pyproject.toml` has `[tool.uv] package = false`; the project doesn't need installing as a package for lint/type/test runs. Saves seconds and avoids needing build deps in CI.
+- **MongoDB service container with health check** + env vars (`MONGODB_URI`, `MONGODB_DB`) gives tests a real DB without any in-CI bootstrap script. `mongo:7` boots in ~5 s.
+- **`concurrency.cancel-in-progress`** at workflow level. Saves CI minutes when pushing fixups rapidly during PR review.
+- **Debug ruff isort categorization mismatches with `-v`.** `ruff check -v` prints `Categorized 'X' as Known(FirstParty) (SourceMatch("..."))` lines — pinpoints whether a file was found on disk vs treated as third-party. Saved 20 min of guessing.
+
+### Anti-Patterns (avoid)
+- **Did not run `ruff/mypy/pytest` locally before pushing the workflow.** Every CI failure today (`I001 download_models.py`, `no-any-return setup.py`, `F821 PurePath`, `test_sanitize_strips_path_components`, `test_generate_ts`) would have been caught by `cd backend && uv run ruff check . && uv run mypy app/ && uv run pytest -m "not slow"` before the first push. **Always** run the same commands CI runs locally before opening the PR.
+- **Removed a symbol from imports without grepping for other usages.** Replaced `PurePath` with `PureWindowsPath` in the import line — `PurePath` was used in two other places in the same file. `Grep "PurePath"` in the file before deleting it would have flagged this in 2 seconds.
+- **Pinned pnpm to v9 in CI without checking local version.** User had pnpm v11 locally. The `pnpm-workspace.yaml` used the v10+ `allowBuilds:` syntax which v9 silently ignores; v10+ also requires a `packages:` field which v9 doesn't. Mismatched version triggered both issues.
+- **Pinned Node 20 without checking pnpm's Node-version requirement.** pnpm 11.1+ requires Node ≥22.13 (uses `node:sqlite`). Bump Node and pnpm together.
+- **Made an edit, didn't re-run ruff, pushed → CI failed on the same file.** Faster to run the linter once locally than to wait for CI, read the error, and push again. The CI feedback loop is 2-5 min; local ruff is sub-second.
+
+### Discoveries (unexpected)
+- **`.gitignore: models/` was matching `backend/app/core/models/` source code** (the Phase 1 model loader stubs). Anchor with `/models/` when you mean repo-root only. Locally everything worked because the files existed on disk; CI got a different tree → ruff isort categorized `app.core.models.loader` as third-party (no source match), and `test_model_loader.py` would have failed pytest too once import resolution ran. The ruff I001 was the canary; the deeper bug was the un-tracked source. Lesson: **periodically run `git ls-files | wc -l` and sanity-check that all source modules are tracked.**
+- **`pathlib.PurePath` is platform-dependent.** On Linux it does NOT recognize `\` as a path separator, so `PurePath("C:\\Windows\\evil.mp4").name` returns the whole string. Use `PureWindowsPath` for any filename-sanitization code path — it accepts both `/` and `\` on every host. This was a real security/UX bug: a Windows browser uploading via multipart can send Windows-style filenames to a Linux server, and the un-sanitized backslashes leaked path components into stored filenames.
+- **ruff's isort first-party detection is disk-dependent unless explicitly configured.** Without `[tool.ruff.lint.isort] known-first-party = ["app"]`, ruff decides per-run based on which directories it can see. CI and local environments can disagree silently. **Always pin `known-first-party` for any non-installed-package layout.**
+- **mypy strict + structlog:** `structlog.get_logger()` returns `Any` because the concrete type depends on `wrapper_class` configuration. Wrap with `cast(structlog.stdlib.BoundLogger, ...)` to satisfy `no-any-return`. Local `.mypy_cache` was masking this; CI's fresh run caught it. `rm -rf .mypy_cache && uv run mypy app/` before any "mypy is clean locally" claim.
+- **pnpm v10+ requires `packages:` in `pnpm-workspace.yaml`.** Even for single-package projects. Use `packages: ['.']` to declare the current directory as the only workspace package; the `allowBuilds:` allowlist still works.
+- **`generate_ts` test references `frontend/node_modules/.bin/json2ts`.** Backend CI job doesn't install frontend deps, so the test needs `@pytest.mark.skipif(not _JSON2TS.exists(), ...)`. Path check mirrors the script's own logic — skip is accurate (skips only when codegen actually can't run).
+- **Git on Windows is converting LF→CRLF on every commit** (warnings: "LF will be replaced by CRLF the next time Git touches it"). Tolerable for now but could bite us later (especially Python `\r` in test fixtures, or shell scripts in `.github/workflows/`). Consider adding `.gitattributes` with `* text=auto eol=lf` and `*.py text eol=lf` next time we touch repo-wide config.
+
+### Local pre-push checklist (add to your muscle memory)
+```bash
+# backend
+cd backend && uv run ruff format --check . && uv run ruff check . && uv run mypy app/ && uv run pytest -m "not slow"
+# frontend
+cd frontend && pnpm lint && pnpm test && pnpm build
+```
+Run both before every push to a PR'd branch. Mirrors what CI does — if these pass, CI will (modulo platform-specific bugs the above session uncovered).
+
+---
+
 ## [2026-05-17] Phase 2A: Video Import Foundation
 
 ### Implementation Log
