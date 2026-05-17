@@ -33,7 +33,7 @@ async def client(
     repo = VideoRepository(test_db)
     app.dependency_overrides[get_video_repository] = lambda: repo
     app.dependency_overrides[get_settings] = lambda: settings
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         yield ac
     app.dependency_overrides.clear()
 
@@ -47,7 +47,7 @@ async def short_cap_client(
     repo = VideoRepository(test_db)
     app.dependency_overrides[get_video_repository] = lambda: repo
     app.dependency_overrides[get_settings] = lambda: settings
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         yield ac
     app.dependency_overrides.clear()
 
@@ -61,7 +61,7 @@ async def tiny_cap_client(
     repo = VideoRepository(test_db)
     app.dependency_overrides[get_video_repository] = lambda: repo
     app.dependency_overrides[get_settings] = lambda: settings
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         yield ac
     app.dependency_overrides.clear()
 

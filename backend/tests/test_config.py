@@ -60,6 +60,6 @@ def test_allowed_url_hosts_env_override_comma_separated(
 def test_cors_origins_env_override_comma_separated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("CORS_ORIGINS", "http://a.com, http://b.com")
+    monkeypatch.setenv("CORS_ORIGINS", "https://a.com, https://b.com")
     settings = Settings(_env_file=None)
-    assert settings.cors_origins == ["http://a.com", "http://b.com"]
+    assert settings.cors_origins == ["https://a.com", "https://b.com"]
