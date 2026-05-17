@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
@@ -19,13 +20,16 @@ class FakeRepo:
         self.hash_lookup: VideoDocument | None = None
 
     async def insert(self, doc: VideoDocument) -> VideoDocument:
+        await asyncio.sleep(0)
         self.docs[doc.id] = doc
         return doc
 
     async def find_by_hash(self, content_hash: str) -> VideoDocument | None:
+        await asyncio.sleep(0)
         return self.hash_lookup
 
     async def update_status(self, video_id: str, **fields: Any) -> VideoDocument | None:
+        await asyncio.sleep(0)
         existing = self.docs.get(video_id)
         if existing is None:
             return None

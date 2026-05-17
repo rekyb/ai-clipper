@@ -32,7 +32,7 @@ function walk(dir: string): string[] {
 describe('no hex colour literals outside tokens.ts', () => {
   const offenders: string[] = [];
   for (const file of walk(ROOT)) {
-    const rel = relative(ROOT, file).replace(/\\/g, '/');
+    const rel = relative(ROOT, file).replaceAll('\\', '/');
     if (ALLOW_FILES.has(rel)) continue;
     const content = readFileSync(file, 'utf-8');
     if (HEX_RE.test(content)) offenders.push(rel);

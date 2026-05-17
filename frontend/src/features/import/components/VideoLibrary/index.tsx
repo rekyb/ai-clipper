@@ -20,6 +20,8 @@ const GRID_SX = {
   gap: 2,
 };
 
+const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6'] as const;
+
 export function VideoLibrary() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [target, setTarget] = useState<VideoDocument | null>(null);
@@ -49,8 +51,8 @@ export function VideoLibrary() {
 
       {isLoading && (
         <Box sx={GRID_SX}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} variant="rounded" height={240} />
+          {SKELETON_KEYS.map((key) => (
+            <Skeleton key={key} variant="rounded" height={240} />
           ))}
         </Box>
       )}

@@ -29,13 +29,15 @@ _REPLACEMENT_HEADER = (
 )
 
 
-def _rewrite_header(path: Path) -> None:
+def _rewrite_header(output_rel: str) -> None:
     # json2ts emits a fixed disable-all banner; replace with rule-specific disables
     # so SonarQube doesn't flag the bare `/* eslint-disable */`.
-    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    safe = (REPO_ROOT / output_rel).resolve()
+    safe.relative_to(REPO_ROOT.resolve())
+    lines = safe.read_text(encoding="utf-8").splitlines(keepends=True)
     for i, line in enumerate(lines):
         if line.strip() == "*/":
-            path.write_text(_REPLACEMENT_HEADER + "".join(lines[i + 1 :]), encoding="utf-8")
+            safe.write_text(_REPLACEMENT_HEADER + "".join(lines[i + 1 :]), encoding="utf-8")
             return
 
 
@@ -44,7 +46,7 @@ def generate_all() -> None:
         output = REPO_ROOT / output_rel
         output.parent.mkdir(parents=True, exist_ok=True)
         generate_typescript_defs(module, str(output), json2ts_cmd=JSON2TS)
-        _rewrite_header(output)
+        _rewrite_header(output_rel)
         print(f"wrote {output}")
 
 

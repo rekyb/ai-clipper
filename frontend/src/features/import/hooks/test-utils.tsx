@@ -29,5 +29,5 @@ export function mockJsonFetch(body: unknown, ok = true, status = ok ? 200 : 500)
       status,
       statusText: ok ? 'OK' : 'Error',
       json: () => Promise.resolve(body),
-    } as Response)) as unknown as typeof fetch;
+    })) as unknown as typeof fetch;
 }

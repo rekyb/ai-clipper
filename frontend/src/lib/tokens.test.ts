@@ -51,7 +51,7 @@ describe('Vivid Velocity radii tokens', () => {
       md: parseRem(design.rounded.md),
       lg: parseRem(design.rounded.lg),
       xl: parseRem(design.rounded.xl),
-      full: parseInt(design.rounded.full, 10),
+      full: Number.parseInt(design.rounded.full, 10),
     };
     expect(radii).toEqual(parsed);
   });
@@ -88,7 +88,7 @@ describe('Vivid Velocity typography tokens', () => {
     const designSpec = design.typography[designKey];
     expect(ts.fontFamily).toBe(designSpec.fontFamily);
     expect(ts.fontSize).toBe(parsePx(designSpec.fontSize));
-    expect(ts.fontWeight).toBe(parseInt(designSpec.fontWeight, 10));
+    expect(ts.fontWeight).toBe(Number.parseInt(designSpec.fontWeight, 10));
     expect(ts.lineHeight).toBe(parsePx(designSpec.lineHeight));
   });
 });
@@ -102,11 +102,11 @@ describe('motion tokens', () => {
 });
 
 function parseRem(value: string): number {
-  if (value.endsWith('rem')) return parseFloat(value) * 16;
-  if (value.endsWith('px')) return parseInt(value, 10);
-  return parseInt(value, 10);
+  if (value.endsWith('rem')) return Number.parseFloat(value) * 16;
+  if (value.endsWith('px')) return Number.parseInt(value, 10);
+  return Number.parseInt(value, 10);
 }
 
 function parsePx(value: string): number {
-  return parseInt(value, 10);
+  return Number.parseInt(value, 10);
 }

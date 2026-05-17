@@ -1,8 +1,10 @@
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+import aiofiles
 import pytest
 from bson import ObjectId
 
@@ -24,10 +26,12 @@ class FakeVideoRepository:
         self.hash_lookup: VideoDocument | None = None
 
     async def insert(self, doc: VideoDocument) -> VideoDocument:
+        await asyncio.sleep(0)
         self.inserted.append(doc)
         return doc
 
     async def find_by_hash(self, content_hash: str) -> VideoDocument | None:
+        await asyncio.sleep(0)
         return self.hash_lookup
 
 
@@ -70,8 +74,8 @@ def _existing_video(content_hash: str, title: str) -> VideoDocument:
 
 
 async def _file_chunks(path: Path, chunk_size: int = 64 * 1024) -> AsyncIterator[bytes]:
-    with path.open("rb") as f:
-        while chunk := f.read(chunk_size):
+    async with aiofiles.open(path, "rb") as f:
+        while chunk := await f.read(chunk_size):
             yield chunk
 
 

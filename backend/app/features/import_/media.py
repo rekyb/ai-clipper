@@ -50,7 +50,7 @@ async def probe(path: Path) -> ProbeResult:
     try:
         data = json.loads(result.stdout)
         duration = float(data["format"]["duration"])
-    except (KeyError, ValueError, json.JSONDecodeError) as exc:
+    except (KeyError, ValueError) as exc:
         raise MediaProbeError(f"could not parse ffprobe output: {exc}") from exc
 
     has_video = any(stream.get("codec_type") == "video" for stream in data.get("streams", []))

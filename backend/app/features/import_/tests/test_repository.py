@@ -167,7 +167,7 @@ async def test_update_status_can_set_metadata_fields(
         content_hash="freshhash",
     )
     assert updated is not None
-    assert updated.duration_sec == 180.5
+    assert updated.duration_sec == pytest.approx(180.5)
     assert updated.thumbnail_path == "/media/thumbnails/x.jpg"
     assert updated.content_hash == "freshhash"
 
