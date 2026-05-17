@@ -50,6 +50,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["B"]
+"app/features/*/tests/**" = ["B"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -58,7 +59,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "app/features"]
 markers = [
     "slow: marks tests that load AI models or process media (skip by default with -m 'not slow')",
 ]
