@@ -19,12 +19,32 @@ FEATURES: dict[str, str] = {
     "app.features.import_.schemas": "frontend/src/features/import/types.ts",
 }
 
+_REPLACEMENT_HEADER = (
+    "/* eslint-disable @typescript-eslint/no-empty-interface,"
+    " @typescript-eslint/no-explicit-any */\n"
+    "/**\n"
+    " * Auto-generated from Pydantic schemas via backend/scripts/generate_ts.py.\n"
+    " * Re-run the script after updating Pydantic models; do not edit by hand.\n"
+    " */\n"
+)
+
+
+def _rewrite_header(path: Path) -> None:
+    # json2ts emits a fixed disable-all banner; replace with rule-specific disables
+    # so SonarQube doesn't flag the bare `/* eslint-disable */`.
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if line.strip() == "*/":
+            path.write_text(_REPLACEMENT_HEADER + "".join(lines[i + 1 :]), encoding="utf-8")
+            return
+
 
 def generate_all() -> None:
     for module, output_rel in FEATURES.items():
         output = REPO_ROOT / output_rel
         output.parent.mkdir(parents=True, exist_ok=True)
         generate_typescript_defs(module, str(output), json2ts_cmd=JSON2TS)
+        _rewrite_header(output)
         print(f"wrote {output}")
 
 

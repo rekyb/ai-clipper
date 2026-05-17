@@ -59,7 +59,7 @@ export function VideoLibrary() {
         <Alert
           severity="error"
           action={
-            <Button color="inherit" size="small" onClick={() => void mutate()}>
+            <Button color="inherit" size="small" onClick={() => { mutate(); }}>
               Retry
             </Button>
           }

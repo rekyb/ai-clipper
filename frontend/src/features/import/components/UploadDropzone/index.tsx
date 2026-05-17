@@ -21,7 +21,9 @@ export function UploadDropzone() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) void handleFile(file);
+    if (file) {
+      handleFile(file);
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -31,7 +33,9 @@ export function UploadDropzone() {
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) void handleFile(file);
+    if (file) {
+      handleFile(file);
+    }
     e.target.value = '';
   };
 

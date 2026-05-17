@@ -37,8 +37,8 @@ describe('Vivid Velocity color tokens', () => {
   );
 
   it('exposes every color declared in DESIGN.md', () => {
-    const designKeys = Object.keys(design.colors).map(kebabToCamel).sort();
-    const tokenKeys = Object.keys(colors).sort();
+    const designKeys = Object.keys(design.colors).map(kebabToCamel).sort((a, b) => a.localeCompare(b));
+    const tokenKeys = Object.keys(colors).sort((a, b) => a.localeCompare(b));
     expect(tokenKeys).toEqual(designKeys);
   });
 });

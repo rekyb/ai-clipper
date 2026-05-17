@@ -31,7 +31,10 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 media_router = APIRouter(prefix="/media", tags=["media"])
 
 
-@media_router.get("/thumbnails/{filename}")
+@media_router.get(
+    "/thumbnails/{filename}",
+    responses={404: {"description": "Thumbnail filename invalid or not on disk"}},
+)
 async def serve_thumbnail(
     filename: str,
     settings: Annotated[Settings, Depends(get_settings)],

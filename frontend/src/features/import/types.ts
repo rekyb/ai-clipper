@@ -1,9 +1,8 @@
-/* tslint:disable */
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-empty-interface, @typescript-eslint/no-explicit-any */
 /**
-/* This file was automatically generated from pydantic models by running pydantic2ts.
-/* Do not modify it by hand - just update the pydantic models and then re-run the script
-*/
+ * Auto-generated from Pydantic schemas via backend/scripts/generate_ts.py.
+ * Re-run the script after updating Pydantic models; do not edit by hand.
+ */
 
 export type VideoSource = "upload" | "youtube";
 export type VideoStatus = "uploading" | "imported" | "failed";

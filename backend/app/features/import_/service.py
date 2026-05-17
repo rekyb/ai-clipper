@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePath, PureWindowsPath
 from urllib.parse import urlparse
 
+import aiofiles
 import structlog
 from bson import ObjectId
 
@@ -69,11 +70,11 @@ async def _stream_to_disk(
     target.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
     total = 0
-    with target.open("wb") as out:
+    async with aiofiles.open(target, "wb") as out:
         async for chunk in chunks:
             if total + len(chunk) > max_bytes:
                 raise VideoTooLargeError(f"file exceeds {max_bytes} bytes")
-            out.write(chunk)
+            await out.write(chunk)
             digest.update(chunk)
             total += len(chunk)
     return digest.hexdigest(), total
