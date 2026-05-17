@@ -14,7 +14,6 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.logging.setup import configure_logging, get_logger
 
-
 WHISPER_MEDIUM_REPO = "Systran/faster-whisper-medium"
 LLAMA_REPO = "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
 LLAMA_FILENAME = "Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf"
