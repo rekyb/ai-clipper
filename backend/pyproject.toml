@@ -29,13 +29,32 @@ dev = [
     "types-aiofiles>=24.1",
 ]
 
-# Heavy AI deps installed via extras to keep Phase 1 install light.
-# Run: uv sync --extra ai --extra video
+# Heavy AI deps split by phase. Llama-cpp requires MSVC+nmake on Windows;
+# Phase 2 only needs Whisper. Phase 3 adds Llama for viral-candidate analysis.
+#   Phase 2B: uv sync --extra whisper
+#   Phase 3+: uv sync --extra whisper --extra llama
+#   All-in-one (still supported): uv sync --extra ai
 [project.optional-dependencies]
+whisper = [
+    "faster-whisper>=1.0",
+    "nvidia-ml-py>=12.535",
+    # CUDA runtime DLLs for faster-whisper. NVIDIA wheels — no full CUDA
+    # Toolkit needed; pip provides cudart64_12 + cublas64_12 + cudnn ops_64_9.
+    # cuda-runtime must be present; cublas depends on cudart at load time.
+    "nvidia-cuda-runtime-cu12>=12.4",
+    "nvidia-cublas-cu12>=12.4",
+    "nvidia-cudnn-cu12>=9.0,<10",
+]
+llama = [
+    "llama-cpp-python>=0.3",
+]
 ai = [
     "faster-whisper>=1.0",
     "llama-cpp-python>=0.3",
-    "pynvml>=11.5",
+    "nvidia-ml-py>=12.535",
+    "nvidia-cuda-runtime-cu12>=12.4",
+    "nvidia-cublas-cu12>=12.4",
+    "nvidia-cudnn-cu12>=9.0,<10",
 ]
 video = [
     "ffmpeg-python>=0.2",
@@ -54,6 +73,8 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["B"]
 "app/features/*/tests/**" = ["B"]
+"app/core/*/tests/**" = ["B"]
+"app/workers/tests/**" = ["B"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
@@ -64,15 +85,38 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["yt_dlp", "yt_dlp.*", "pydantic2ts", "pydantic2ts.*"]
+module = [
+    "yt_dlp",
+    "yt_dlp.*",
+    "pydantic2ts",
+    "pydantic2ts.*",
+    "pynvml",
+    "faster_whisper",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests", "app/features"]
+testpaths = ["tests", "app/features", "app/core", "app/workers"]
 markers = [
     "slow: marks tests that load AI models or process media (skip by default with -m 'not slow')",
 ]
 
 [tool.uv]
 package = false
+
+# Pull llama-cpp-python from the upstream prebuilt CUDA wheel index
+# instead of building from source. Avoids needing MSVC + nmake on Windows.
+# Adjust the URL suffix if your CUDA toolkit isn't 12.4:
+#   CUDA 12.1 → /whl/cu121
+#   CUDA 12.2 → /whl/cu122
+#   CUDA 12.3 → /whl/cu123
+#   CUDA 12.4 → /whl/cu124  (current default)
+#   CPU-only  → /whl/cpu
+[tool.uv.sources]
+llama-cpp-python = { index = "abetlen-cuda" }
+
+[[tool.uv.index]]
+name = "abetlen-cuda"
+url = "https://abetlen.github.io/llama-cpp-python/whl/cu124"
+explicit = true

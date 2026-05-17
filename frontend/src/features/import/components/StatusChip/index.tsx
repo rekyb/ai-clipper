@@ -4,10 +4,13 @@ import type { VideoStatus } from '@/features/import/types';
 
 const VARIANTS: Record<
   VideoStatus,
-  { color: 'primary' | 'secondary' | 'error'; label: string }
+  { color: 'primary' | 'secondary' | 'error' | 'warning'; label: string }
 > = {
   uploading: { color: 'primary', label: 'Uploading' },
   imported: { color: 'secondary', label: 'Imported' },
+  queued: { color: 'warning', label: 'Queued' },
+  transcribing: { color: 'primary', label: 'Transcribing' },
+  ready: { color: 'secondary', label: 'Ready' },
   failed: { color: 'error', label: 'Failed' },
 };
 

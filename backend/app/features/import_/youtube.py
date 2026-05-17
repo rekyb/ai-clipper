@@ -27,12 +27,34 @@ def _map_download_error(exc: DownloadError) -> YoutubeDownloadError:
         return YoutubeDownloadError(str(exc), code="VIDEO_REMOVED")
     if "confirm your age" in msg or "age-restricted" in msg or "age restricted" in msg:
         return YoutubeDownloadError(str(exc), code="VIDEO_AGE_GATED")
+    # YouTube's actual error string uses U+2019, not ASCII apostrophe.
+    if (
+        "confirm you're not a bot" in msg
+        or "confirm you’re not a bot" in msg  # noqa: RUF001
+        or "--cookies" in msg
+    ):
+        return YoutubeDownloadError(str(exc), code="VIDEO_AUTH_REQUIRED")
     if "not available in your country" in msg or "geo" in msg:
         return YoutubeDownloadError(str(exc), code="VIDEO_REGION_BLOCKED")
     return YoutubeDownloadError(str(exc), code="DOWNLOAD_FAILED")
 
 
-def download_to(url: str, target_dir: Path) -> YoutubeResult:
+def _parse_browser_spec(spec: str) -> tuple[str, ...]:
+    # yt-dlp accepts ("chrome",) or ("chrome", "Profile 1"). The CLI form is
+    # "chrome:Profile 1"; we split on the first colon only.
+    name, sep, profile = spec.partition(":")
+    if sep and profile:
+        return (name.strip(), profile.strip())
+    return (name.strip(),)
+
+
+def download_to(
+    url: str,
+    target_dir: Path,
+    *,
+    cookies_from_browser: str | None = None,
+    cookies_file: Path | None = None,
+) -> YoutubeResult:
     target_dir.mkdir(parents=True, exist_ok=True)
     opts: dict[str, Any] = {
         "format": "best[ext=mp4]/best",
@@ -41,6 +63,10 @@ def download_to(url: str, target_dir: Path) -> YoutubeResult:
         "quiet": True,
         "no_warnings": True,
     }
+    if cookies_from_browser:
+        opts["cookiesfrombrowser"] = _parse_browser_spec(cookies_from_browser)
+    if cookies_file:
+        opts["cookiefile"] = str(cookies_file)
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)

@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.core.db.client import close_client, get_db
 from app.core.logging.setup import configure_logging, get_logger
 
-COLLECTIONS = ("videos", "clips", "exports")
+COLLECTIONS = ("videos", "clips", "exports", "transcripts")
 
 INDEXES: dict[str, list[tuple[str, list[tuple[str, int]], dict[str, Any]]]] = {
     "videos": [
@@ -23,6 +23,11 @@ INDEXES: dict[str, list[tuple[str, list[tuple[str, int]], dict[str, Any]]]] = {
         ("created_at_desc", [("createdAt", DESCENDING)], {}),
         ("status_idx", [("status", ASCENDING)], {}),
         ("content_hash_unique", [("contentHash", ASCENDING)], {"unique": True, "sparse": True}),
+        (
+            "status_started_idx",
+            [("status", ASCENDING), ("transcriptionStartedAt", ASCENDING)],
+            {},
+        ),
     ],
     "clips": [
         ("video_id_idx", [("videoId", ASCENDING)], {}),
@@ -32,6 +37,9 @@ INDEXES: dict[str, list[tuple[str, list[tuple[str, int]], dict[str, Any]]]] = {
     "exports": [
         ("clip_id_idx", [("clipId", ASCENDING)], {}),
         ("created_at_desc", [("createdAt", DESCENDING)], {}),
+    ],
+    "transcripts": [
+        ("video_id_unique", [("videoId", ASCENDING)], {"unique": True}),
     ],
 }
 

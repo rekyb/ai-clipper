@@ -5,7 +5,7 @@
  */
 
 export type VideoSource = "upload" | "youtube";
-export type VideoStatus = "uploading" | "imported" | "failed";
+export type VideoStatus = "uploading" | "imported" | "queued" | "transcribing" | "ready" | "failed";
 
 export interface UrlImportRequest {
   url: string;
@@ -27,6 +27,10 @@ export interface VideoDocument {
   errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
+  lastProgressPercent?: number | null;
+  transcriptionStartedAt?: string | null;
+  transcriptionFinishedAt?: string | null;
+  restartedAt?: string | null;
 }
 export interface VideoListResponse {
   videos: VideoDocument[];

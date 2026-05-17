@@ -58,7 +58,12 @@ test('upload -> appears in library -> delete -> empty state', async ({ page }) =
 
   const card = page.locator('img[alt="sample"]').first();
   await expect(card).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('Imported', { exact: true }).first()).toBeVisible();
+  // After Chunk 2B, auto-pickup flips imported → queued within ~2s, so accept either.
+  await expect(
+    page
+      .getByText(/Queued|Transcribing|Imported|Ready|Failed/, { exact: true })
+      .first(),
+  ).toBeVisible({ timeout: 5_000 });
 
   await page.getByLabel('delete sample').click();
   await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();

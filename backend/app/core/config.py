@@ -36,6 +36,13 @@ class Settings(BaseSettings):
 
     max_file_size_bytes: int = 5 * 1024**3
     max_duration_seconds: int = 14400
+
+    whisper_vram_budget_mb: int = 2200
+    vram_safety_margin_mb: int = 300
+    skip_vram_guard: bool = False
+    transcription_poll_interval_sec: float = 2.0
+    transcription_timeout_multiplier: float = 4.0
+    transcription_progress_throttle_sec: float = 1.0
     supported_containers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["mp4", "mkv", "mov", "avi", "webm"]
     )
@@ -47,6 +54,12 @@ class Settings(BaseSettings):
             "m.youtube.com",
         ]
     )
+
+    # Optional YouTube auth. Either one resolves the "Sign in to confirm you're
+    # not a bot" interstitial. Format for cookies-from-browser: "chrome",
+    # "firefox", "edge", or with profile "chrome:Profile 1".
+    youtube_cookies_from_browser: str | None = None
+    youtube_cookies_file: Path | None = None
 
     @field_validator("cors_origins", "supported_containers", "allowed_url_hosts", mode="before")
     @classmethod
@@ -82,6 +95,14 @@ class Settings(BaseSettings):
     @property
     def thumbnails_dir(self) -> Path:
         return self.media_dir / "thumbnails"
+
+    @property
+    def whisper_vram_budget_bytes(self) -> int:
+        return self.whisper_vram_budget_mb * 1024 * 1024
+
+    @property
+    def vram_safety_margin_bytes(self) -> int:
+        return self.vram_safety_margin_mb * 1024 * 1024
 
 
 @lru_cache

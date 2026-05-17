@@ -226,7 +226,8 @@ async def test_list_returns_uploaded_video(
     videos = listed.json()["data"]["videos"]
     assert len(videos) == 1
     assert videos[0]["filename"] == "sample.mp4"
-    assert videos[0]["status"] == "imported"
+    # Chunk 2B auto-flips imported → queued after a successful upload.
+    assert videos[0]["status"] == "queued"
 
 
 async def test_list_filters_by_status(client: AsyncClient) -> None:

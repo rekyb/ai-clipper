@@ -11,6 +11,7 @@ import structlog
 from bson import ObjectId
 
 from app.core.config import Settings
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.errors import (
     DuplicateVideoError,
     DurationExceededError,
@@ -28,7 +29,8 @@ from app.features.import_.media import (
     probe,
 )
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoDocument, VideoSource, VideoStatus
+from app.features.import_.schemas import VideoDocument, VideoSource
+from app.features.transcription.coordinator import enqueue as enqueue_for_transcription
 
 log = structlog.get_logger("import.service")
 
@@ -151,7 +153,9 @@ async def import_uploaded_file(
             created_at=now,
             updated_at=now,
         )
-        return await repo.insert(doc)
+        inserted = await repo.insert(doc)
+        await enqueue_for_transcription(inserted.id, repo=repo)
+        return inserted
 
     except Exception:
         _cleanup_paths(temp_path, final_path, thumbnail_path, final_dir)

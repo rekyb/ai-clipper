@@ -17,6 +17,7 @@ JSON2TS = str(FRONTEND_BIN / ("json2ts.cmd" if sys.platform == "win32" else "jso
 
 FEATURES: dict[str, str] = {
     "app.features.import_.schemas": "frontend/src/features/import/types.ts",
+    "app.features.transcription.schemas": "frontend/src/lib/transcription-types.ts",
 }
 
 _REPLACEMENT_HEADER = (

@@ -9,6 +9,7 @@ import pytest
 from bson import ObjectId
 
 from app.core.config import Settings
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.errors import (
     DuplicateVideoError,
     DurationExceededError,
@@ -16,7 +17,7 @@ from app.features.import_.errors import (
     VideoTooLargeError,
 )
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoDocument, VideoSource, VideoStatus
+from app.features.import_.schemas import VideoDocument, VideoSource
 from app.features.import_.service import _sanitize_filename, import_uploaded_file
 
 
@@ -24,6 +25,7 @@ class FakeVideoRepository:
     def __init__(self) -> None:
         self.inserted: list[VideoDocument] = []
         self.hash_lookup: VideoDocument | None = None
+        self.transitions: list[tuple[str, VideoStatus]] = []
 
     async def insert(self, doc: VideoDocument) -> VideoDocument:
         await asyncio.sleep(0)
@@ -33,6 +35,18 @@ class FakeVideoRepository:
     async def find_by_hash(self, content_hash: str) -> VideoDocument | None:
         await asyncio.sleep(0)
         return self.hash_lookup
+
+    async def transition_status(
+        self, video_id: str, *, from_status: object, to_status: VideoStatus, **_: object
+    ) -> VideoDocument | None:
+        await asyncio.sleep(0)
+        self.transitions.append((video_id, to_status))
+        for i, doc in enumerate(self.inserted):
+            if doc.id == video_id:
+                updated = doc.model_copy(update={"status": to_status})
+                self.inserted[i] = updated
+                return updated
+        return None
 
 
 def _fake_repo() -> VideoRepository:

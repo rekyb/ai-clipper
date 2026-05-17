@@ -4,6 +4,40 @@ Newest entries on top.
 
 ---
 
+## [2026-05-17] Chunk 2B — Transcription Pipeline + WebSocket Progress
+
+### Implementation Log
+- **PRD:** `docs/features/transcription-pipeline/transcription-pipeline-prd.md` — approved
+- **Tech Docs:** `docs/features/transcription-pipeline/transcription-pipeline-technical-docs.md` — approved
+- **Verification:** `docs/features/transcription-pipeline/transcription-pipeline-verification.md` — Gate 3 approved
+- **Implementation:** complete. 256 backend tests + 179 frontend tests, lint+mypy clean.
+- **Status of branch `2b-transcription-pipeline-websocket-progress`:** ready for commit/merge; awaiting user authorization to commit.
+
+### Patterns (worked well)
+- **In-process asyncio worker in FastAPI lifespan + atomic `findOneAndUpdate` for FIFO claim.** Single-GPU pipelines don't need Celery/RQ — `asyncio.create_task(worker.run_forever())` started in lifespan, claim via `find_one_and_update({status: queued}, sort=createdAt)` is correct, simple, and crash-safe. Sweep-on-startup handles `transcribing`→`queued` for crashed processes.
+- **Snapshot-on-subscribe WebSocket, no replay buffer.** `/ws/{video_id}` sends the current state when a client connects, then live events thereafter. Reconnect/refresh is trivially correct; no buffering, no replay protocol. Exponential backoff `[500, 1000, 2000, 5000, 10000]` on the client.
+- **`asyncio.to_thread` + `run_coroutine_threadsafe` to bridge sync Whisper iterator to async loop.** faster-whisper's `transcribe()` returns a sync generator. Iterate it in a thread; for each segment, dispatch `on_segment(...)` back onto the main loop via `run_coroutine_threadsafe(coro, loop).result()`. Keeps the worker fully async without blocking.
+- **Pydantic discriminated union via `Literal[type]` for WS event envelope.** `ProgressEvent(type: Literal["progress","complete","error"])` codegens to a clean TS discriminated union — frontend reducer pattern matches on `event.type` with full type narrowing.
+- **Per-package try/except in CUDA DLL registrar.** One corrupt nvidia wheel shouldn't shadow the others. Each `import_module` + `add_dll_directory` wrapped independently with structured `log.warning("cuda_dll_dir_skipped", reason=...)`. Made the eventual `__file__ is None` bug self-diagnose from logs.
+
+### Anti-Patterns (avoid)
+- **Don't check `module.__file__` to find a wheel's data dir** — namespace packages (PEP 420) have `__file__ = None`. The `nvidia.cublas` / `nvidia.cuda_runtime` / `nvidia.cudnn` wheels install as namespace packages. Use `getattr(mod, "__path__", None)` (walks `_NamespacePath` entries) and fall back to `__file__.parent` only if `__path__` is absent. **Why:** the wrong check silently skipped DLL registration for exactly the wheels we needed.
+- **`os.add_dll_directory` does NOT cover transitive DLL loads on Windows.** When `cublas64_12.dll` itself loads its dependency `cudart64_12.dll`, Windows uses the standard search order which does NOT consult Python's added directories — only `PATH`, the EXE dir, and system dirs. **Fix:** prepend each bin dir to `os.environ["PATH"]` alongside `add_dll_directory` (idempotent — check before prepending). **Symptom if you don't:** `WhisperModel(...)` constructor succeeds (top-level cuBLAS load works), but the first `transcribe()` call dies with `Library cublas64_12.dll is not found or cannot be loaded` when cuBLAS tries to lazy-load cuDART for the first GPU op.
+- **`nvidia-cublas-cu12` does NOT bundle the CUDA runtime.** It depends on `nvidia-cuda-runtime-cu12` (cudart64_12.dll). Without it you get the same "library not found or cannot be loaded" error. Add all three: `nvidia-cuda-runtime-cu12`, `nvidia-cublas-cu12`, `nvidia-cudnn-cu12`.
+- **Don't split `llama-cpp-python` into the same `--extra` as faster-whisper.** llama-cpp-python builds from source on Windows and needs MSVC + nmake. Split into `--extra whisper` (Phase 2) and `--extra llama` (Phase 3). For llama, pull from `https://abetlen.github.io/llama-cpp-python/whl/cu124` via `[tool.uv.sources]` + `[[tool.uv.index]]` to avoid the build entirely.
+- **Mongo timestamps truncate to millisecond precision.** Tests asserting `before <= doc.timestamp <= after` flake when `before`/`after` are microsecond-precise Python timestamps. Add `timedelta(milliseconds=1)` slack to the bounds.
+- **`pynvml` (deprecated) → `nvidia-ml-py`.** Same `import pynvml` API, no deprecation warning, actively maintained.
+- **Default `CORS_ORIGINS=["http://localhost:3000"]` breaks when Next bounces to 3001** (port conflict). Either pin frontend to :3000 or extend `CORS_ORIGINS=http://localhost:3000,http://localhost:3001`. Backend logs an `OPTIONS /api/... 400` on preflight rejection — useful diagnostic signal.
+
+### Discoveries (unexpected findings)
+- **YouTube now requires cookies for many unauthenticated requests.** yt-dlp surfaces it as `Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies`. Note the apostrophe is **U+2019**, not ASCII — match both in error-mapping (`# noqa: RUF001` on the curly one). Added `YOUTUBE_COOKIES_FROM_BROWSER` (`chrome`, `firefox`, `edge`, with optional `:Profile 1`) and `YOUTUBE_COOKIES_FILE` settings; mapped to a new `VIDEO_AUTH_REQUIRED` error code.
+- **`cookies-from-browser=chrome` is broken on Windows when Chrome is running.** Chrome 127+ uses app-bound encryption that blocks cookie reads while the process holds the DB. Either close Chrome first or use `firefox`/`edge` (no such restriction). For headless/automation, exported `cookies.txt` (Netscape format) via `YOUTUBE_COOKIES_FILE` is more reliable. **Always gitignore `cookies.txt`** — contains session tokens equivalent to a logged-in YouTube session.
+- **fake test imports in Python: `dict.get(name, _RaiseImport(name))` evaluates the default eagerly.** This caused a confusing test failure where every `fake_import` call raised. Use an `if name in stubs: return stubs[name]; else: raise ImportError(name)` block instead.
+- **Vitest fake-timers break `waitFor`** — `waitFor` polls on real time, so a `vi.useFakeTimers()` test waiting on a debounced/throttled event hangs. Use real timers by default; switch to fake only for the specific reconnect-backoff tests where you explicitly advance time.
+- **CRLF on Windows breaks `^---\n.*\n---` frontmatter regexes.** Use `/^---\r?\n([\s\S]+?)\r?\n---/` in `tokens.test.ts`-style frontmatter parsers so the same regex works on both line endings.
+
+---
+
 ## [2026-05-17] SonarCloud PR Hardening Pass
 
 ### Implementation Log

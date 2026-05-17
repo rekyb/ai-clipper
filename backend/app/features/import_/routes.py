@@ -16,9 +16,10 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.config import Settings, get_settings
 from app.core.db.client import get_db
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.errors import ImportDomainError, InvalidInputError
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import UrlImportRequest, VideoStatus
+from app.features.import_.schemas import UrlImportRequest
 from app.features.import_.service import (
     delete_video,
     import_from_url,
@@ -87,12 +88,25 @@ async def download_from_url(
     return {"data": placeholder.model_dump(mode="json", by_alias=True), "error": None}
 
 
+_IMPORTING_VIRTUAL_FILTER = "importing"
+_IMPORTING_REAL_STATUSES = [VideoStatus.UPLOADING, VideoStatus.IMPORTED]
+
+
 @router.get("")
 async def list_all(
     repo: Annotated[VideoRepository, Depends(get_video_repository)],
-    status: VideoStatus | None = None,
+    status: str | None = None,
 ) -> dict[str, Any]:
-    docs = await list_videos(repo=repo, status=status)
+    if status == _IMPORTING_VIRTUAL_FILTER:
+        docs = await repo.list_videos(statuses=_IMPORTING_REAL_STATUSES)
+    elif status is None:
+        docs = await list_videos(repo=repo, status=None)
+    else:
+        try:
+            parsed = VideoStatus(status)
+        except ValueError as exc:
+            raise InvalidInputError(f"unknown status filter: {status}") from exc
+        docs = await list_videos(repo=repo, status=parsed)
     return {
         "data": {"videos": [d.model_dump(mode="json", by_alias=True) for d in docs]},
         "error": None,

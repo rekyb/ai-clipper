@@ -3,11 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
-
-class VideoStatus(StrEnum):
-    UPLOADING = "uploading"
-    IMPORTED = "imported"
-    FAILED = "failed"
+from app.core.schemas.video_status import VideoStatus
 
 
 class VideoSource(StrEnum):
@@ -34,6 +30,12 @@ class VideoDocument(BaseModel):
     error_message: str | None = Field(default=None, alias="errorMessage")
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
+    last_progress_percent: int | None = Field(default=None, alias="lastProgressPercent")
+    transcription_started_at: datetime | None = Field(default=None, alias="transcriptionStartedAt")
+    transcription_finished_at: datetime | None = Field(
+        default=None, alias="transcriptionFinishedAt"
+    )
+    restarted_at: datetime | None = Field(default=None, alias="restartedAt")
 
 
 class UrlImportRequest(BaseModel):

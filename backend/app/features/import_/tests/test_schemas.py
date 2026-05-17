@@ -3,12 +3,12 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.schemas import (
     UrlImportRequest,
     VideoDocument,
     VideoListResponse,
     VideoSource,
-    VideoStatus,
 )
 
 

@@ -4,12 +4,14 @@ import { Chip, Stack } from '@mui/material';
 
 import type { VideoStatus } from '@/features/import/types';
 
-type Filter = VideoStatus | 'all';
+export type StatusFilter = 'all' | 'importing' | VideoStatus;
 
-const OPTIONS: { value: Filter; label: string }[] = [
+const OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
-  { value: 'uploading', label: 'Uploading' },
-  { value: 'imported', label: 'Imported' },
+  { value: 'importing', label: 'Importing' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'transcribing', label: 'Transcribing' },
+  { value: 'ready', label: 'Ready' },
   { value: 'failed', label: 'Failed' },
 ];
 
@@ -17,11 +19,17 @@ export function StatusFilterChips({
   value,
   onChange,
 }: Readonly<{
-  value: Filter;
-  onChange: (next: Filter) => void;
+  value: StatusFilter;
+  onChange: (next: StatusFilter) => void;
 }>) {
   return (
-    <Stack direction="row" spacing={1} role="radiogroup" aria-label="Filter videos by status">
+    <Stack
+      direction="row"
+      spacing={1}
+      role="radiogroup"
+      aria-label="Filter videos by status"
+      sx={{ flexWrap: 'wrap', rowGap: 1 }}
+    >
       {OPTIONS.map((opt) => {
         const selected = value === opt.value;
         return (
@@ -48,5 +56,3 @@ export function StatusFilterChips({
     </Stack>
   );
 }
-
-export type { Filter as StatusFilter };

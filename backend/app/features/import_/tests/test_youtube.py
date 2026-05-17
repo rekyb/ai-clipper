@@ -33,6 +33,61 @@ def test_download_to_returns_filename_title_url(tmp_path: Path) -> None:
     assert result.source_url == "https://youtu.be/dQw4w9WgXcQ"
 
 
+def test_download_to_forwards_browser_cookies_simple(tmp_path: Path) -> None:
+    captured: dict[str, Any] = {}
+
+    class _Capture(_FakeYDL):
+        def __init__(self, opts: dict[str, Any]) -> None:
+            super().__init__(opts)
+            captured.update(opts)
+
+    with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _Capture):
+        download_to("https://youtu.be/x", tmp_path, cookies_from_browser="chrome")
+    assert captured.get("cookiesfrombrowser") == ("chrome",)
+
+
+def test_download_to_forwards_browser_cookies_with_profile(tmp_path: Path) -> None:
+    captured: dict[str, Any] = {}
+
+    class _Capture(_FakeYDL):
+        def __init__(self, opts: dict[str, Any]) -> None:
+            super().__init__(opts)
+            captured.update(opts)
+
+    with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _Capture):
+        download_to("https://youtu.be/x", tmp_path, cookies_from_browser="chrome:Profile 1")
+    assert captured.get("cookiesfrombrowser") == ("chrome", "Profile 1")
+
+
+def test_download_to_forwards_cookies_file(tmp_path: Path) -> None:
+    captured: dict[str, Any] = {}
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n")
+
+    class _Capture(_FakeYDL):
+        def __init__(self, opts: dict[str, Any]) -> None:
+            super().__init__(opts)
+            captured.update(opts)
+
+    with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _Capture):
+        download_to("https://youtu.be/x", tmp_path, cookies_file=cookies)
+    assert captured.get("cookiefile") == str(cookies)
+
+
+def test_download_to_omits_cookies_when_unset(tmp_path: Path) -> None:
+    captured: dict[str, Any] = {}
+
+    class _Capture(_FakeYDL):
+        def __init__(self, opts: dict[str, Any]) -> None:
+            super().__init__(opts)
+            captured.update(opts)
+
+    with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _Capture):
+        download_to("https://youtu.be/x", tmp_path)
+    assert "cookiesfrombrowser" not in captured
+    assert "cookiefile" not in captured
+
+
 def test_download_to_creates_target_dir(tmp_path: Path) -> None:
     nested = tmp_path / "deeply" / "nested"
     with patch("app.features.import_.youtube.yt_dlp.YoutubeDL", _FakeYDL):
@@ -50,6 +105,8 @@ def test_download_to_creates_target_dir(tmp_path: Path) -> None:
         ("ERROR: [youtube] x: This video is age-restricted", "VIDEO_AGE_GATED"),
         ("ERROR: [youtube] x: not available in your country", "VIDEO_REGION_BLOCKED"),
         ("ERROR: [youtube] x: geo-restricted to JP", "VIDEO_REGION_BLOCKED"),
+        ("ERROR: [youtube] x: Sign in to confirm you're not a bot", "VIDEO_AUTH_REQUIRED"),
+        ("ERROR: [youtube] x: Use --cookies-from-browser", "VIDEO_AUTH_REQUIRED"),
         ("ERROR: [youtube] x: something else broke", "DOWNLOAD_FAILED"),
     ],
 )

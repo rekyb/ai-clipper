@@ -6,9 +6,10 @@ from unittest.mock import patch
 import pytest
 
 from app.core.config import Settings
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.errors import InvalidUrlError, UnsupportedHostError
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoDocument, VideoSource, VideoStatus
+from app.features.import_.schemas import VideoDocument, VideoSource
 from app.features.import_.service import import_from_url
 from app.features.import_.tasks import run_youtube_import
 from app.features.import_.youtube import YoutubeResult
@@ -35,6 +36,22 @@ class FakeRepo:
             return None
         update_data = {k: v for k, v in fields.items() if v is not None}
         updated = existing.model_copy(update=update_data)
+        self.docs[video_id] = updated
+        return updated
+
+    async def transition_status(
+        self,
+        video_id: str,
+        *,
+        from_status: object,
+        to_status: VideoStatus,
+        **_: object,
+    ) -> VideoDocument | None:
+        await asyncio.sleep(0)
+        existing = self.docs.get(video_id)
+        if existing is None:
+            return None
+        updated = existing.model_copy(update={"status": to_status})
         self.docs[video_id] = updated
         return updated
 
@@ -117,7 +134,7 @@ async def test_run_youtube_import_marks_record_imported(
         settings=settings,
     )
 
-    def fake_download(_url: str, target_dir: Path) -> YoutubeResult:
+    def fake_download(_url: str, target_dir: Path, **_: Any) -> YoutubeResult:
         return _stage_downloaded_fixture(fixture_videos["mp4"], target_dir, "MyTitle")
 
     with patch("app.features.import_.tasks.download_to", fake_download):
@@ -129,7 +146,8 @@ async def test_run_youtube_import_marks_record_imported(
         )
 
     final = repo.docs[placeholder.id]
-    assert final.status is VideoStatus.IMPORTED
+    # Chunk 2B auto-flips imported → queued after a successful YouTube import.
+    assert final.status is VideoStatus.QUEUED
     assert final.title == "MyTitle"
     assert final.duration_sec is not None
     assert final.content_hash is not None
@@ -150,7 +168,7 @@ async def test_run_youtube_import_marks_failed_on_download_error(
         settings=settings,
     )
 
-    def fake_download(_url: str, _target_dir: Path) -> YoutubeResult:
+    def fake_download(_url: str, _target_dir: Path, **_: Any) -> YoutubeResult:
         raise YoutubeDownloadError("private", code="VIDEO_PRIVATE")
 
     with patch("app.features.import_.tasks.download_to", fake_download):
@@ -177,7 +195,7 @@ async def test_run_youtube_import_marks_failed_on_long_duration(
         settings=settings,
     )
 
-    def fake_download(_url: str, target_dir: Path) -> YoutubeResult:
+    def fake_download(_url: str, target_dir: Path, **_: Any) -> YoutubeResult:
         return _stage_downloaded_fixture(fixture_videos["mp4"], target_dir, "Long")
 
     with patch("app.features.import_.tasks.download_to", fake_download):
@@ -207,7 +225,7 @@ async def test_run_youtube_import_marks_failed_on_duplicate(
         update={"title": "Earlier Import", "id": "65f1a2b3c4d5e6f7a8b9c0d1"}
     )
 
-    def fake_download(_url: str, target_dir: Path) -> YoutubeResult:
+    def fake_download(_url: str, target_dir: Path, **_: Any) -> YoutubeResult:
         return _stage_downloaded_fixture(fixture_videos["mp4"], target_dir, "Dup")
 
     with patch("app.features.import_.tasks.download_to", fake_download):
@@ -236,7 +254,7 @@ async def test_run_youtube_import_cleans_temp_on_failure(
         settings=settings,
     )
 
-    def fake_download(_url: str, _target_dir: Path) -> YoutubeResult:
+    def fake_download(_url: str, _target_dir: Path, **_: Any) -> YoutubeResult:
         raise YoutubeDownloadError("blocked", code="VIDEO_REGION_BLOCKED")
 
     with patch("app.features.import_.tasks.download_to", fake_download):

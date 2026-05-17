@@ -1,6 +1,9 @@
 # --- Project-specific ---
-# AI model files at repo root only; do NOT match backend/app/core/models/ (source)
+# AI model weights — match at repo root or under backend/. Do NOT match
+# backend/app/core/models/ (source) because that path has no extra "models/"
+# segment at its tail with weights in it.
 /models/
+backend/models/
 media/originals/
 media/exports/
 media/logs/
@@ -13,6 +16,11 @@ backend/media/
 .env
 .env.*
 !.env.example
+
+# --- YouTube auth cookies (contain session tokens) ---
+# Match any cookies-like file regardless of prefix (yt_cookies.txt,
+# youtube-cookies.txt, etc.).
+*cookies*.txt
 
 # --- OS ---
 .DS_Store

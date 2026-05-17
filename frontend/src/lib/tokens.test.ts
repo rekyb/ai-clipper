@@ -16,7 +16,7 @@ type DesignFrontmatter = {
 function loadDesign(): DesignFrontmatter {
   const path = resolve(__dirname, '../../../DESIGN.md');
   const raw = readFileSync(path, 'utf-8');
-  const match = raw.match(/^---\n([\s\S]+?)\n---/);
+  const match = raw.match(/^---\r?\n([\s\S]+?)\r?\n---/);
   if (!match) throw new Error('DESIGN.md frontmatter not found');
   return yaml.load(match[1]) as DesignFrontmatter;
 }

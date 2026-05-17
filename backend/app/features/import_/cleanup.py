@@ -4,8 +4,8 @@ from pathlib import Path
 
 import structlog
 
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoStatus
 
 log = structlog.get_logger("import.cleanup")
 

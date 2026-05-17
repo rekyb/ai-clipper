@@ -6,25 +6,26 @@ import { withThemeAndSwr } from '@/features/import/hooks/test-utils';
 import { StatusFilterChips } from './index';
 
 describe('StatusFilterChips', () => {
-  it('renders all four filter options', () => {
+  it('renders all six filter options', () => {
     render(<StatusFilterChips value="all" onChange={vi.fn()} />, { wrapper: withThemeAndSwr });
-    for (const label of ['All', 'Uploading', 'Imported', 'Failed']) {
+    for (const label of [
+      'All',
+      'Importing',
+      'Queued',
+      'Transcribing',
+      'Ready',
+      'Failed',
+    ]) {
       expect(screen.getByRole('radio', { name: label })).toBeInTheDocument();
     }
   });
 
   it('marks the selected chip with aria-checked', () => {
-    render(<StatusFilterChips value="imported" onChange={vi.fn()} />, {
+    render(<StatusFilterChips value="queued" onChange={vi.fn()} />, {
       wrapper: withThemeAndSwr,
     });
-    expect(screen.getByRole('radio', { name: 'Imported' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
+    expect(screen.getByRole('radio', { name: 'Queued' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('calls onChange with the new value when a chip is clicked', async () => {
@@ -32,7 +33,16 @@ describe('StatusFilterChips', () => {
     render(<StatusFilterChips value="all" onChange={onChange} />, {
       wrapper: withThemeAndSwr,
     });
-    await userEvent.click(screen.getByRole('radio', { name: 'Failed' }));
-    expect(onChange).toHaveBeenCalledWith('failed');
+    await userEvent.click(screen.getByRole('radio', { name: 'Importing' }));
+    expect(onChange).toHaveBeenCalledWith('importing');
+  });
+
+  it('calls onChange with transcribing when that chip is clicked', async () => {
+    const onChange = vi.fn();
+    render(<StatusFilterChips value="all" onChange={onChange} />, {
+      wrapper: withThemeAndSwr,
+    });
+    await userEvent.click(screen.getByRole('radio', { name: 'Transcribing' }));
+    expect(onChange).toHaveBeenCalledWith('transcribing');
   });
 });

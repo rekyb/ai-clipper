@@ -71,3 +71,47 @@ async def test_content_hash_index_is_sparse_allowing_multiple_nulls(
     await schema_db["videos"].insert_one({"filename": "b", "status": "uploading"})
     count = await schema_db["videos"].count_documents({})
     assert count == 2
+
+
+async def test_apply_schema_creates_transcripts_collection(
+    schema_db: AsyncIOMotorDatabase,
+) -> None:
+    await apply_schema(schema_db)
+    names = set(await schema_db.list_collection_names())
+    assert "transcripts" in names
+
+
+async def test_apply_schema_creates_transcripts_unique_video_id_index(
+    schema_db: AsyncIOMotorDatabase,
+) -> None:
+    await apply_schema(schema_db)
+    indexes = await schema_db["transcripts"].index_information()
+    assert "video_id_unique" in indexes
+    assert indexes["video_id_unique"].get("unique") is True
+    assert indexes["video_id_unique"]["key"] == [("videoId", 1)]
+
+
+async def test_apply_schema_creates_videos_status_started_compound_index(
+    schema_db: AsyncIOMotorDatabase,
+) -> None:
+    await apply_schema(schema_db)
+    indexes = await schema_db["videos"].index_information()
+    assert "status_started_idx" in indexes
+    assert indexes["status_started_idx"]["key"] == [
+        ("status", 1),
+        ("transcriptionStartedAt", 1),
+    ]
+
+
+async def test_transcripts_video_id_uniqueness_enforced(
+    schema_db: AsyncIOMotorDatabase,
+) -> None:
+    from pymongo.errors import DuplicateKeyError
+
+    await apply_schema(schema_db)
+    await schema_db["transcripts"].insert_one({"videoId": "vid-1"})
+    try:
+        await schema_db["transcripts"].insert_one({"videoId": "vid-1"})
+    except DuplicateKeyError:
+        return
+    raise AssertionError("expected DuplicateKeyError on second insert")

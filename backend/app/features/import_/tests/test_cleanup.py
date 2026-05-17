@@ -6,12 +6,13 @@ from pathlib import Path
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.cleanup import (
     mark_stale_uploading_as_failed,
     sweep_stale_temp_files,
 )
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoDocument, VideoSource, VideoStatus
+from app.features.import_.schemas import VideoDocument, VideoSource
 
 
 def _set_mtime(path: Path, age_hours: float) -> None:

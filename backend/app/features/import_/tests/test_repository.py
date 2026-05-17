@@ -4,8 +4,9 @@ import pytest
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoDocument, VideoSource, VideoStatus
+from app.features.import_.schemas import VideoDocument, VideoSource
 
 
 def _make_doc(

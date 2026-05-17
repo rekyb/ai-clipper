@@ -19,4 +19,19 @@ describe('StatusChip', () => {
     render(<StatusChip status="failed" />, { wrapper: withThemeAndSwr });
     expect(screen.getByTestId('status-chip-failed')).toHaveTextContent('Failed');
   });
+
+  it('renders the queued variant with the Queued label', () => {
+    render(<StatusChip status="queued" />, { wrapper: withThemeAndSwr });
+    expect(screen.getByTestId('status-chip-queued')).toHaveTextContent('Queued');
+  });
+
+  it('renders the transcribing variant with the Transcribing label', () => {
+    render(<StatusChip status="transcribing" />, { wrapper: withThemeAndSwr });
+    expect(screen.getByTestId('status-chip-transcribing')).toHaveTextContent('Transcribing');
+  });
+
+  it('renders the ready variant with the Ready label', () => {
+    render(<StatusChip status="ready" />, { wrapper: withThemeAndSwr });
+    expect(screen.getByTestId('status-chip-ready')).toHaveTextContent('Ready');
+  });
 });

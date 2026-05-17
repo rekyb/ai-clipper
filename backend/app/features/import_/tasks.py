@@ -5,6 +5,7 @@ from pathlib import Path
 import structlog
 
 from app.core.config import Settings
+from app.core.schemas.video_status import VideoStatus
 from app.features.import_.errors import (
     DuplicateVideoError,
     DurationExceededError,
@@ -18,9 +19,9 @@ from app.features.import_.media import (
     probe,
 )
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import VideoStatus
 from app.features.import_.service import _cleanup_paths, _sanitize_filename
 from app.features.import_.youtube import YoutubeDownloadError, download_to
+from app.features.transcription.coordinator import enqueue as enqueue_for_transcription
 
 log = structlog.get_logger("import.tasks")
 
@@ -47,7 +48,13 @@ async def run_youtube_import(
     final_path: Path | None = None
 
     try:
-        result = await asyncio.to_thread(download_to, url, temp_dir)
+        result = await asyncio.to_thread(
+            download_to,
+            url,
+            temp_dir,
+            cookies_from_browser=settings.youtube_cookies_from_browser,
+            cookies_file=settings.youtube_cookies_file,
+        )
         downloaded = result.filename
         container = downloaded.suffix.lstrip(".").lower()
         if container not in settings.supported_containers:
@@ -93,6 +100,7 @@ async def run_youtube_import(
             file_size_bytes=total_bytes,
             container=container,
         )
+        await enqueue_for_transcription(video_id, repo=repo)
         _cleanup_temp_dir(temp_dir)
 
     except YoutubeDownloadError as exc:
