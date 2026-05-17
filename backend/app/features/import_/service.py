@@ -17,6 +17,7 @@ from app.features.import_.errors import (
     StorageError,
     UnsupportedFormatError,
     UnsupportedHostError,
+    VideoNotFoundError,
     VideoTooLargeError,
 )
 from app.features.import_.media import (
@@ -153,6 +154,46 @@ async def import_uploaded_file(
     except Exception:
         _cleanup_paths(temp_path, final_path, thumbnail_path, final_dir)
         raise
+
+
+async def list_videos(
+    *,
+    repo: VideoRepository,
+    status: VideoStatus | None,
+) -> list[VideoDocument]:
+    return await repo.list_videos(status=status)
+
+
+async def delete_video(
+    *,
+    video_id: str,
+    repo: VideoRepository,
+) -> None:
+    existing = await repo.get_by_id(video_id)
+    if existing is None:
+        raise VideoNotFoundError(f"video {video_id} not found")
+    await repo.delete(video_id)
+    _delete_video_files(existing)
+
+
+def _delete_video_files(doc: VideoDocument) -> None:
+    if doc.thumbnail_path:
+        try:
+            Path(doc.thumbnail_path).unlink(missing_ok=True)
+        except OSError as exc:
+            log.warning("thumbnail_delete_failed", path=doc.thumbnail_path, error=str(exc))
+    if doc.storage_path:
+        storage = Path(doc.storage_path)
+        parent = storage.parent
+        try:
+            storage.unlink(missing_ok=True)
+        except OSError as exc:
+            log.warning("source_delete_failed", path=str(storage), error=str(exc))
+        if parent.exists() and not any(parent.iterdir()):
+            try:
+                parent.rmdir()
+            except OSError as exc:
+                log.warning("dir_cleanup_failed", path=str(parent), error=str(exc))
 
 
 async def import_from_url(

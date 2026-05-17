@@ -17,8 +17,13 @@ from app.core.config import Settings, get_settings
 from app.core.db.client import get_db
 from app.features.import_.errors import ImportDomainError, InvalidInputError
 from app.features.import_.repository import VideoRepository
-from app.features.import_.schemas import UrlImportRequest
-from app.features.import_.service import import_from_url, import_uploaded_file
+from app.features.import_.schemas import UrlImportRequest, VideoStatus
+from app.features.import_.service import (
+    delete_video,
+    import_from_url,
+    import_uploaded_file,
+    list_videos,
+)
 from app.features.import_.tasks import run_youtube_import
 
 router = APIRouter(prefix="/videos", tags=["videos"])
@@ -62,6 +67,27 @@ async def download_from_url(
     placeholder = await import_from_url(url=url, repo=repo, settings=settings)
     background.add_task(run_youtube_import, placeholder.id, url, repo=repo, settings=settings)
     return {"data": placeholder.model_dump(mode="json"), "error": None}
+
+
+@router.get("")
+async def list_all(
+    repo: Annotated[VideoRepository, Depends(get_video_repository)],
+    status: VideoStatus | None = None,
+) -> dict[str, Any]:
+    docs = await list_videos(repo=repo, status=status)
+    return {
+        "data": {"videos": [d.model_dump(mode="json") for d in docs]},
+        "error": None,
+    }
+
+
+@router.delete("/{video_id}")
+async def delete_one(
+    video_id: str,
+    repo: Annotated[VideoRepository, Depends(get_video_repository)],
+) -> dict[str, Any]:
+    await delete_video(video_id=video_id, repo=repo)
+    return {"data": {"id": video_id, "deleted": True}, "error": None}
 
 
 def _import_error_handler(_request: Request, exc: Exception) -> JSONResponse:
