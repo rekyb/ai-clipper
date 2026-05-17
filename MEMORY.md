@@ -4,6 +4,62 @@ Newest entries on top.
 
 ---
 
+## [2026-05-17] SonarCloud PR Hardening Pass
+
+### Implementation Log
+- **Trigger:** SonarCloud quality gate failed on PR #5 (Phase 2A merge to `main`) — ~20 annotations across 4 rounds, 2 failures + many warnings + 8 unreviewed security hotspots.
+- **Fetched findings via `WebFetch` of `github.com/<owner>/<repo>/pull/<n>/checks?check_run_id=<id>`** — returns the annotation table directly (file, line, rule message, severity). Beats clicking through SonarCloud UI.
+- **Round 1 (HTTPException 404 docs, sync `.open()` in async fn, `void` operator, eslint-disable without rules, sort without compare):** documented 404 in `responses=`, added `aiofiles` dep + switched `_stream_to_disk` to `async with aiofiles.open`, removed `void` operators in 3 places, post-processed pydantic2ts header in `scripts/generate_ts.py` with rule-specific disables, added `localeCompare` to sort calls.
+- **Round 2 (async fn no async features, props not readonly, useless `{}`):** `close_client` → sync `def` (motor's `client.close()` is sync); `serve_thumbnail` → sync `def` (FastAPI threadpools sync handlers — fine for blocking I/O); wrapped 9 React components' inline prop types with `Readonly<...>`; dropped `?? {}` from `...init?.headers` (spreading `undefined` is a no-op).
+- **Round 3 (10 issues incl. path injection, `Number.parseInt`, redundant Exception, async test mocks, etc.):** validated `generate_ts.py` paths with `.relative_to(REPO_ROOT)`; switched `_file_chunks` test helper to `aiofiles`; added `await asyncio.sleep(0)` to 5 protocol-implementing mock methods; dropped `json.JSONDecodeError` from `except (KeyError, ValueError, ...)` tuple (it's a `ValueError` subclass); `parseInt/parseFloat` → `Number.parseInt/parseFloat`; replaced `Array.from({length:6}).map((_, i) => key={i})` with a static `SKELETON_KEYS` array; `.replace(/\\/g, ...)` → `.replaceAll('\\', ...)`; `pytest.approx` for float `==`; removed unnecessary `as Response` in `test-utils.tsx`.
+- **Round 4 (security: clear-text HTTP, action pinning):** pinned all 5 GitHub Actions to full commit SHAs with trailing `# vX.Y.Z` Dependabot-style comments; flipped `httpx.AsyncClient(base_url="http://test")` and CORS env test data to `https://...`.
+
+### Patterns (worked well)
+- **`WebFetch` on a check-run URL surfaces the full SonarCloud annotation table.** `https://github.com/<owner>/<repo>/pull/<n>/checks?check_run_id=<id>` → markdown table of (file, line, rule, severity). Single fetch beats N click-throughs and gives an actionable batch to fix.
+- **`git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>` to resolve action SHAs.** No `gh` CLI required. Use the specific patch tag (`v4.2.2`) not the major (`v4`) so the comment line is honest. Trailing `# vX.Y.Z` is what Dependabot expects when it bumps.
+- **For protocol-implementing async test mocks, add `await asyncio.sleep(0)`.** Genuine event-loop yield, mimics real async behavior, satisfies `S7503` without `# NOSONAR` clutter. Use this any time a mock must stay `async` to match an interface.
+- **Post-process auto-generated files in the generator script.** `pydantic2ts` emits `/* eslint-disable */` bare-banner that SonarQube flags; rather than editing the output (which regen overwrites), added `_rewrite_header()` to `scripts/generate_ts.py`. Same principle: never patch generator output by hand.
+- **Path-injection (S2083) fix by `.relative_to(SAFE_ROOT)` validation.** Restructured `_rewrite_header` to take a relative string and reconstruct: `safe = (REPO_ROOT / output_rel).resolve(); safe.relative_to(REPO_ROOT.resolve())`. Raises if path escapes — proves to taint analyzer that no user-controlled input reaches the I/O sink.
+- **Wrap component props with `Readonly<{...}>` inline** rather than extracting a `XxxProps` type. Keeps the prop list co-located with the function signature and reads naturally; satisfies `typescript:S6759` with minimal diff churn.
+
+### Anti-Patterns (avoid)
+- **Don't fix SonarQube symptoms blindly — read the rule message.** "Use https" on `http://test` is *not* an actual security fix; `http://test` is an opaque httpx-ASGI identifier never dialed. The flip is fine because tests still pass, but recognize when SonarQube is technically wrong (localhost dev defaults, SVG `xmlns`, `httpx` test base_urls) vs actually right (CI action `@v4` floating tags, sync I/O in async paths).
+- **Don't claim "fixed" without `Grep` first when the user gives a rule message but no file path.** I almost guessed wrong on the http issue. Better to grep the codebase, list candidates, ask user which file. Earlier in this session I did exactly that and it saved a wrong-file edit.
+- **Don't run `rtk test uv run pytest -m "not slow"`** — the rtk wrapper strips quotes around the marker expression and pytest sees `slow` as a file path. Either run `uv run pytest -m "not slow"` directly, or use a marker expression that doesn't need quoting.
+- **Removing an import without grepping for in-file usages, take 2.** Recurred *again* in the `aiofiles` round (I added it, didn't remove anything this time — so OK). But the prior `PurePath` removal anti-pattern is real and worth its own line in the checklist below.
+
+### Discoveries (unexpected)
+- **SonarQube's `S5332` (clear-text HTTP) is overzealous on test fixtures and dev defaults.** Localhost is usually exempt, but `http://test` (httpx ASGI), `http://a.com` (CORS test data), and similar non-localhost test strings get flagged. SVG `xmlns="http://www.w3.org/2000/svg"` is NOT flagged (namespace identifier). Decision tree: real prod URL → fix; localhost dev default → leave + mark "Safe" in SonarCloud UI; test fixture string → flip to https (zero behavioral impact).
+- **`pnpm/action-setup@v4` resolves to `f40ffcd9...` (HEAD of v4 branch) but `v4.0.0` resolves to `0c17529a...`.** They differ. Pin to the specific tag (`v4.0.0` → `0c17529a...`) for reproducibility — Dependabot will update both lines together when there's a real new release.
+- **`json.JSONDecodeError` IS a `ValueError` subclass** — including it in `except (KeyError, ValueError, json.JSONDecodeError)` is redundant. SonarQube `python:S5713` (or similar) catches this. Same trap with `IndexError` ⊂ `LookupError`, `TimeoutError` ⊂ `OSError` (in 3.10+), `FileNotFoundError` ⊂ `OSError`.
+- **FastAPI accepts both `def` and `async def` route handlers.** Sync handlers run in the threadpool — actually *more correct* for blocking I/O (`pathlib`, `subprocess.run`, file existence checks). Don't force `async` on a handler that doesn't await anything just because "FastAPI is async". `serve_thumbnail` doing path checks is genuinely better as plain `def`.
+- **Motor's `AsyncIOMotorClient.close()` is synchronous** despite being on an async client. So `close_client` doesn't need to be `async` — was only async because the lifespan context happened to `await` it. Pattern: check the underlying library's sync/async surface before declaring wrappers async.
+- **`Number.parseInt`/`Number.parseFloat` are spec-identical to the globals,** just namespaced. The SonarQube rule `typescript:S7773` exists because the globals are reassignable in old environments. Trivial fix: pure replace.
+- **`String.prototype.replaceAll(literalString, replacement)`** (no regex) is cleaner than `replace(/\\/g, ...)` for literal-string global replacements. Available since ES2021 — Node 16+ — safe everywhere we run.
+- **`pytest.approx(180.5)` with default `rel=1e-6` tolerance** is the right call for float equality on values that round-trip through serialization. Use `abs=...` for very small numbers near zero where relative tolerance breaks down.
+- **The check-run URL format `pull/<n>/checks?check_run_id=<id>`** is fetchable without auth via `WebFetch` for public repos. For private repos: `gh api repos/<owner>/<repo>/check-runs/<id>` is the equivalent but `gh` wasn't installed.
+
+### Local pre-PR SonarQube checklist (add to muscle memory)
+```bash
+# After local linters pass, scan for the most common SonarQube traps:
+# 1. parseInt/parseFloat globals
+rg -n 'parseInt|parseFloat' frontend/src --type ts | grep -v Number.
+
+# 2. http:// in non-localhost source
+rg -n 'http://(?!localhost|test|127\.0\.0\.1)' --type ts --type py
+
+# 3. floating /* eslint-disable */ with no rule names
+rg -n '/\* eslint-disable \*/' frontend/src
+
+# 4. Float == in tests
+rg -n 'assert.*== [0-9]+\.[0-9]+' backend
+
+# 5. Async functions without await/async-with/async-for/yield (Python)
+uv run python -c "import ast, pathlib; [print(f'{p}:{n.lineno} {n.name}') for p in pathlib.Path('app').rglob('*.py') for n in ast.walk(ast.parse(p.read_text())) if isinstance(n, ast.AsyncFunctionDef) and not any(isinstance(s, (ast.Await, ast.AsyncWith, ast.AsyncFor)) for s in ast.walk(n)) and not any(isinstance(s, ast.Yield) for s in ast.walk(n))]"
+```
+
+---
+
 ## [2026-05-17] GitHub Actions CI Setup
 
 ### Implementation Log
