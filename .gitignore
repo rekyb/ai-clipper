@@ -5,6 +5,7 @@ media/exports/
 media/logs/
 docker/mongo-data/
 backend/.e2e-media/
+backend/media/
 .claude/
 
 # --- Env ---
